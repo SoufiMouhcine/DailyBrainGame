@@ -1,6 +1,7 @@
 
 package com.example.dailybrain;
 
+import android.util.AttributeSet;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -14,7 +15,7 @@ import java.util.ArrayList;
 public class GameView extends View {
 
     private final int GRID_SIZE = 5;
-
+    private boolean gameCompleted = false;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     private float cellSize;
@@ -24,21 +25,92 @@ public class GameView extends View {
     private final ArrayList<int[]> path = new ArrayList<>();
 
     // Checkpoints: row, column
-    private final int[][] checkpoints = {
-            {0, 0}, // 1
-            {2, 2}, // 2
-            {4, 4}  // 3
-    };
-
+    private int[][] checkpoints;
+    private boolean[][] horizontalWalls;
+    private boolean[][] verticalWalls;
     private final int BACKGROUND_COLOR = Color.rgb(245, 247, 250);
     private final int CELL_COLOR = Color.WHITE;
-    private final int PATH_COLOR = Color.rgb(100, 149, 237);
+    private final int PATH_COLOR = Color.rgb(38, 180, 70);
+    private final int GRID_LINE_COLOR = Color.rgb(220, 223, 228);
+    private final int CHECKPOINT_COLOR = Color.BLACK;
+    private final int CHECKPOINT_START_COLOR = Color.rgb(76, 200, 70);
     private final int BORDER_COLOR = Color.rgb(210, 215, 225);
+    private int[][] solutionPath;
+
+    public interface GameListener {
+
+        void onProgressChanged(int count);
+
+        void onGameCompleted();
+    }
+
+    public void setPuzzle(Puzzle puzzle) {
+
+        checkpoints = puzzle.getCheckpoints();
+
+        horizontalWalls =
+                puzzle.getHorizontalWalls();
+
+        verticalWalls =
+                puzzle.getVerticalWalls();
+        solutionPath =
+                puzzle.getSolutionPath();
+
+        path.clear();
+        gameCompleted = false;
+
+        invalidate();
+    }
+
+    private GameListener gameListener;
+
+    public void setGameListener(GameListener listener) {
+        this.gameListener = listener;
+    }
 
     public GameView(Context context) {
         super(context);
     }
 
+    public GameView(Context context, AttributeSet attrs) {
+        super(context, attrs);
+    }
+
+
+    public void resetGame() {
+
+        path.clear();
+        gameCompleted = false;
+
+        if (gameListener != null) {
+            gameListener.onProgressChanged(0);
+        }
+
+        invalidate();
+    }
+
+    private void notifyProgress() {
+
+        if (gameListener != null) {
+            gameListener.onProgressChanged(path.size());
+        }
+    }
+
+    private boolean isGameCompleted() {
+
+        if (path.size() != GRID_SIZE * GRID_SIZE) {
+            return false;
+        }
+
+        int[] lastCell = path.get(path.size() - 1);
+
+        int lastCheckpoint = getCheckpointIndex(
+                lastCell[0],
+                lastCell[1]
+        );
+
+        return lastCheckpoint == checkpoints.length - 1;
+    }
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -46,7 +118,7 @@ public class GameView extends View {
         float width = getWidth();
         float height = getHeight();
 
-        cellSize = Math.min(width, height) / (GRID_SIZE + 0.5f);
+        cellSize = Math.min(width, height) / (GRID_SIZE + 0.15f);
 
         gridStartX = (width - cellSize * GRID_SIZE) / 2;
         gridStartY = (height - cellSize * GRID_SIZE) / 2;
@@ -55,42 +127,60 @@ public class GameView extends View {
 
         // Draw cells
         for (int row = 0; row < GRID_SIZE; row++) {
+
             for (int col = 0; col < GRID_SIZE; col++) {
 
-                float left = gridStartX + col * cellSize;
-                float top = gridStartY + row * cellSize;
+                float left =
+                        gridStartX + col * cellSize;
+
+                float top =
+                        gridStartY + row * cellSize;
 
                 RectF rect = new RectF(
-                        left + 5,
-                        top + 5,
-                        left + cellSize - 5,
-                        top + cellSize - 5
+                        left,
+                        top,
+                        left + cellSize,
+                        top + cellSize
                 );
 
                 paint.setStyle(Paint.Style.FILL);
+                paint.setColor(Color.WHITE);
 
-                if (isCellInPath(row, col)) {
-                    paint.setColor(PATH_COLOR);
-                } else {
-                    paint.setColor(CELL_COLOR);
-                }
+                canvas.drawRect(rect, paint);
 
-                canvas.drawRoundRect(rect, 15, 15, paint);
-
+                // Light grid lines
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(2);
-                paint.setColor(BORDER_COLOR);
+                paint.setStrokeWidth(1);
+                paint.setColor(GRID_LINE_COLOR);
 
-                canvas.drawRoundRect(rect, 15, 15, paint);
+                canvas.drawRect(rect, paint);
             }
-        }
+            // Outer rounded border
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(3);
+            paint.setColor(Color.rgb(190, 194, 200));
 
+            RectF boardRect = new RectF(
+                    gridStartX,
+                    gridStartY,
+                    gridStartX + GRID_SIZE * cellSize,
+                    gridStartY + GRID_SIZE * cellSize
+            );
+
+            canvas.drawRoundRect(
+                    boardRect,
+                    18,
+                    18,
+                    paint
+            );
+        }
+        drawWalls(canvas);
         // Draw path
         if (path.size() > 1) {
 
             paint.setColor(PATH_COLOR);
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(cellSize * 0.12f);
+            paint.setStrokeWidth(cellSize * 0.16f);
             paint.setStrokeCap(Paint.Cap.ROUND);
             paint.setStrokeJoin(Paint.Join.ROUND);
 
@@ -108,20 +198,107 @@ public class GameView extends View {
                 );
             }
         }
-
+        drawHint(canvas);
         // Draw numbered checkpoints
         drawCheckpoints(canvas);
     }
+    private void drawHint(Canvas canvas) {
 
+        if (hintCell == null) {
+            return;
+        }
+
+        float x =
+                getCellCenterX(hintCell[1]);
+
+        float y =
+                getCellCenterY(hintCell[0]);
+
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(cellSize * 0.07f);
+        paint.setColor(
+                Color.rgb(76, 200, 70)
+        );
+
+        canvas.drawCircle(
+                x,
+                y,
+                cellSize * 0.32f,
+                paint
+        );
+    }
+    private void drawWalls(Canvas canvas) {
+
+        paint.setColor(Color.BLACK);
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(cellSize * 0.14f);
+        paint.setStrokeCap(Paint.Cap.SQUARE);
+
+        // Horizontal walls
+        for (int row = 0; row < GRID_SIZE - 1; row++) {
+
+            for (int col = 0; col < GRID_SIZE; col++) {
+
+                if (horizontalWalls != null &&
+                        horizontalWalls[row][col]) {
+
+                    float x1 =
+                            gridStartX +
+                                    col * cellSize;
+
+                    float x2 =
+                            x1 + cellSize;
+
+                    float y =
+                            gridStartY +
+                                    (row + 1) * cellSize;
+
+                    canvas.drawLine(
+                            x1,
+                            y,
+                            x2,
+                            y,
+                            paint
+                    );
+                }
+            }
+        }
+
+        // Vertical walls
+        for (int row = 0; row < GRID_SIZE; row++) {
+
+            for (int col = 0; col < GRID_SIZE - 1; col++) {
+
+                if (verticalWalls != null &&
+                        verticalWalls[row][col]) {
+
+                    float x =
+                            gridStartX +
+                                    (col + 1) * cellSize;
+
+                    float y1 =
+                            gridStartY +
+                                    row * cellSize;
+
+                    float y2 =
+                            y1 + cellSize;
+
+                    canvas.drawLine(
+                            x,
+                            y1,
+                            x,
+                            y2,
+                            paint
+                    );
+                }
+            }
+        }
+    }
     private void drawCheckpoints(Canvas canvas) {
 
-        paint.setStyle(Paint.Style.FILL);
-        paint.setColor(Color.rgb(35, 45, 65));
-        paint.setTextSize(cellSize * 0.42f);
-        paint.setTextAlign(Paint.Align.CENTER);
-        paint.setFakeBoldText(true);
-
-        for (int i = 0; i < checkpoints.length; i++) {
+        for (int i = 0;
+             i < checkpoints.length;
+             i++) {
 
             int row = checkpoints[i][0];
             int col = checkpoints[i][1];
@@ -129,16 +306,160 @@ public class GameView extends View {
             float x = getCellCenterX(col);
             float y = getCellCenterY(row);
 
-            // Vertically center the number
-            Paint.FontMetrics metrics = paint.getFontMetrics();
-            float textY = y - (metrics.ascent + metrics.descent) / 2;
+            float radius = cellSize * 0.25f;
 
-            canvas.drawText(String.valueOf(i + 1), x, textY, paint);
+            // First checkpoint gets green ring
+            if (i == 0) {
+
+                paint.setStyle(Paint.Style.FILL);
+                paint.setColor(
+                        CHECKPOINT_START_COLOR
+                );
+
+                canvas.drawCircle(
+                        x,
+                        y,
+                        radius + cellSize * 0.07f,
+                        paint
+                );
+            }
+
+            // Black circle
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(
+                    CHECKPOINT_COLOR
+            );
+
+            canvas.drawCircle(
+                    x,
+                    y,
+                    radius,
+                    paint
+            );
+
+            // Number
+            paint.setColor(Color.WHITE);
+            paint.setTextSize(
+                    cellSize * 0.28f
+            );
+
+            paint.setTextAlign(
+                    Paint.Align.CENTER
+            );
+
+            paint.setFakeBoldText(true);
+
+            Paint.FontMetrics metrics =
+                    paint.getFontMetrics();
+
+            float textY =
+                    y -
+                            (metrics.ascent +
+                                    metrics.descent) / 2;
+
+            canvas.drawText(
+                    String.valueOf(i + 1),
+                    x,
+                    textY,
+                    paint
+            );
+
+            paint.setFakeBoldText(false);
+        }
+    }
+    public void undoMove() {
+
+        if (gameCompleted) {
+            return;
         }
 
-        paint.setFakeBoldText(false);
-    }
+        if (path.size() <= 1) {
+            return;
+        }
 
+        path.remove(path.size() - 1);
+
+        notifyProgress();
+
+        invalidate();
+    }
+    public void showHint() {
+
+        if (gameCompleted ||
+                path.isEmpty() ||
+                solutionPath == null) {
+
+            return;
+        }
+
+        int[] lastCell =
+                path.get(path.size() - 1);
+
+        int solutionIndex =
+                findSolutionIndex(
+                        lastCell[0],
+                        lastCell[1]
+                );
+
+        if (solutionIndex == -1 ||
+                solutionIndex >= solutionPath.length - 1) {
+
+            return;
+        }
+
+        // Look for the next unvisited cell
+        // from the generated solution.
+        for (int i = solutionIndex + 1;
+             i < solutionPath.length;
+             i++) {
+
+            int row =
+                    solutionPath[i][0];
+
+            int col =
+                    solutionPath[i][1];
+
+            if (!isCellInPath(row, col) &&
+                    isAdjacent(
+                            lastCell[0],
+                            lastCell[1],
+                            row,
+                            col
+                    ) &&
+                    !isWallBetween(
+                            lastCell[0],
+                            lastCell[1],
+                            row,
+                            col
+                    )) {
+
+                hintCell =
+                        new int[]{row, col};
+
+                invalidate();
+
+                return;
+            }
+        }
+    }
+    private int findSolutionIndex(
+            int row,
+            int col) {
+
+        for (int i = 0;
+             i < solutionPath.length;
+             i++) {
+
+            if (solutionPath[i][0] == row &&
+                    solutionPath[i][1] == col) {
+
+                return i;
+            }
+        }
+
+        return -1;
+    }
+    private int[] hintCell = null;
     private float getCellCenterX(int col) {
         return gridStartX + col * cellSize + cellSize / 2;
     }
@@ -214,11 +535,41 @@ public class GameView extends View {
         // Must visit checkpoints in order
         return checkpointIndex == getNextCheckpointIndex();
     }
+    private boolean isWallBetween(
+            int row1,
+            int col1,
+            int row2,
+            int col2) {
 
+        // Moving vertically
+        if (col1 == col2) {
+
+            int wallRow =
+                    Math.min(row1, row2);
+
+            return horizontalWalls != null &&
+                    horizontalWalls[wallRow][col1];
+        }
+
+        // Moving horizontally
+        if (row1 == row2) {
+
+            int wallCol =
+                    Math.min(col1, col2);
+
+            return verticalWalls != null &&
+                    verticalWalls[row1][wallCol];
+        }
+
+        return false;
+    }
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 
         if (cellSize <= 0) {
+            return true;
+        }
+        if (gameCompleted) {
             return true;
         }
 
@@ -265,6 +616,8 @@ public class GameView extends View {
                                 previousCell[1] == col) {
 
                             path.remove(path.size() - 1);
+                            notifyProgress(); // Update counter after removing a cell
+
                             invalidate();
 
                             return true;
@@ -277,7 +630,13 @@ public class GameView extends View {
                             lastCell[1],
                             row,
                             col
-                    )) {
+                    ) &&
+                            !isWallBetween(
+                                    lastCell[0],
+                                    lastCell[1],
+                                    row,
+                                    col
+                            )) {
 
                         // Do not revisit cells
                         if (!isCellInPath(row, col)) {
@@ -286,6 +645,18 @@ public class GameView extends View {
                             if (canVisitCell(row, col)) {
 
                                 path.add(new int[]{row, col});
+                                hintCell = null;
+                                notifyProgress();
+
+                                if (isGameCompleted()) {
+
+                                    gameCompleted = true;
+
+                                    if (gameListener != null) {
+                                        gameListener.onGameCompleted();
+                                    }
+                                }
+
                                 invalidate();
                             }
                         }

@@ -118,23 +118,27 @@ public class GameView extends View {
         float width = getWidth();
         float height = getHeight();
 
+        if (width <= 0 || height <= 0) {
+            return;
+        }
+
+        // Keep the board square and centered
         cellSize = Math.min(width, height) / (GRID_SIZE + 0.15f);
 
-        gridStartX = (width - cellSize * GRID_SIZE) / 2;
-        gridStartY = (height - cellSize * GRID_SIZE) / 2;
+        gridStartX = (width - cellSize * GRID_SIZE) / 2f;
+        gridStartY = (height - cellSize * GRID_SIZE) / 2f;
 
         canvas.drawColor(BACKGROUND_COLOR);
 
-        // Draw cells
-        for (int row = 0; row < GRID_SIZE; row++) {
+        // 1. Draw white cells and thin grid lines
+        paint.setStyle(Paint.Style.FILL);
+        paint.setStrokeWidth(1f);
 
+        for (int row = 0; row < GRID_SIZE; row++) {
             for (int col = 0; col < GRID_SIZE; col++) {
 
-                float left =
-                        gridStartX + col * cellSize;
-
-                float top =
-                        gridStartY + row * cellSize;
+                float left = gridStartX + col * cellSize;
+                float top = gridStartY + row * cellSize;
 
                 RectF rect = new RectF(
                         left,
@@ -143,39 +147,42 @@ public class GameView extends View {
                         top + cellSize
                 );
 
-                paint.setStyle(Paint.Style.FILL);
-                paint.setColor(Color.WHITE);
-
+                paint.setColor(CELL_COLOR);
                 canvas.drawRect(rect, paint);
 
-                // Light grid lines
                 paint.setStyle(Paint.Style.STROKE);
-                paint.setStrokeWidth(1);
+                paint.setStrokeWidth(1f);
                 paint.setColor(GRID_LINE_COLOR);
 
                 canvas.drawRect(rect, paint);
+
+                paint.setStyle(Paint.Style.FILL);
             }
-            // Outer rounded border
-            paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(3);
-            paint.setColor(Color.rgb(190, 194, 200));
-
-            RectF boardRect = new RectF(
-                    gridStartX,
-                    gridStartY,
-                    gridStartX + GRID_SIZE * cellSize,
-                    gridStartY + GRID_SIZE * cellSize
-            );
-
-            canvas.drawRoundRect(
-                    boardRect,
-                    18,
-                    18,
-                    paint
-            );
         }
+
+        // 2. Draw the outer border ONCE
+        RectF boardRect = new RectF(
+                gridStartX + 1.5f,
+                gridStartY + 1.5f,
+                gridStartX + GRID_SIZE * cellSize - 1.5f,
+                gridStartY + GRID_SIZE * cellSize - 1.5f
+        );
+
+        paint.setStyle(Paint.Style.STROKE);
+        paint.setStrokeWidth(3f);
+        paint.setColor(Color.rgb(165, 170, 178));
+
+        canvas.drawRoundRect(
+                boardRect,
+                18f,
+                18f,
+                paint
+        );
+
+        // 3. Draw walls between cells
         drawWalls(canvas);
-        // Draw path
+
+        // 4. Draw the player's green path
         if (path.size() > 1) {
 
             paint.setColor(PATH_COLOR);
@@ -198,9 +205,14 @@ public class GameView extends View {
                 );
             }
         }
+
+        // 5. Draw the Hint highlight
         drawHint(canvas);
-        // Draw numbered checkpoints
-        drawCheckpoints(canvas);
+
+        // 6. Draw checkpoint circles last so they stay visible
+        if (checkpoints != null) {
+            drawCheckpoints(canvas);
+        }
     }
     private void drawHint(Canvas canvas) {
 

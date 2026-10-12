@@ -151,13 +151,15 @@
         <Button
             android:id="@+id/hintButton"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:text="HINT"
-            android:textColor="#222222"
+            android:textColor="#263238"
             android:textStyle="bold"
-            android:textSize="12sp"
-            android:backgroundTint="#FFFFFF"
+            android:textSize="13sp"
+            android:background="@drawable/bg_hint_button"
+            android:stateListAnimator="@null"
+            android:elevation="0dp"
             android:padding="0dp" />
 
         <Space
@@ -167,13 +169,15 @@
         <Button
             android:id="@+id/undoButton"
             android:layout_width="0dp"
-            android:layout_height="match_parent"
+            android:layout_height="48dp"
             android:layout_weight="1"
             android:text="UNDO"
-            android:textColor="#999999"
+            android:textColor="#263238"
             android:textStyle="bold"
-            android:textSize="12sp"
-            android:backgroundTint="#E5E7EB"
+            android:textSize="13sp"
+            android:background="@drawable/bg_undo_button"
+            android:stateListAnimator="@null"
+            android:elevation="0dp"
             android:padding="0dp" />
 
     </LinearLayout>

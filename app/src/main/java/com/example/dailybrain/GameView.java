@@ -9,7 +9,7 @@ import android.graphics.Color;
 import android.graphics.RectF;
 import android.view.MotionEvent;
 import android.view.View;
-
+import android.graphics.Path;
 import java.util.ArrayList;
 
 public class GameView extends View {
@@ -183,28 +183,37 @@ public class GameView extends View {
         drawWalls(canvas);
 
         // 4. Draw the player's green path
-        if (path.size() > 1) {
 
-            paint.setColor(PATH_COLOR);
+        // Draw player path
+        if (path.size() > 1) {
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(cellSize * 0.16f);
+            paint.setColor(PATH_COLOR);
+            paint.setStrokeWidth(cellSize * 0.17f);
             paint.setStrokeCap(Paint.Cap.ROUND);
             paint.setStrokeJoin(Paint.Join.ROUND);
 
-            for (int i = 0; i < path.size() - 1; i++) {
+            Path linePath = new Path();
 
-                int[] current = path.get(i);
-                int[] next = path.get(i + 1);
+            int[] first = path.get(0);
+            linePath.moveTo(
+                    getCellCenterX(first[1]),
+                    getCellCenterY(first[0])
+            );
 
-                canvas.drawLine(
-                        getCellCenterX(current[1]),
-                        getCellCenterY(current[0]),
-                        getCellCenterX(next[1]),
-                        getCellCenterY(next[0]),
-                        paint
+            for (int i = 1; i < path.size(); i++) {
+                int[] cell = path.get(i);
+
+                linePath.lineTo(
+                        getCellCenterX(cell[1]),
+                        getCellCenterY(cell[0])
                 );
             }
+
+            canvas.drawPath(linePath, paint);
+
+            paint.setStyle(Paint.Style.FILL);
         }
+
 
         // 5. Draw the Hint highlight
         drawHint(canvas);
@@ -306,12 +315,13 @@ public class GameView extends View {
             }
         }
     }
+
     private void drawCheckpoints(Canvas canvas) {
+        if (checkpoints == null) {
+            return;
+        }
 
-        for (int i = 0;
-             i < checkpoints.length;
-             i++) {
-
+        for (int i = 0; i < checkpoints.length; i++) {
             int row = checkpoints[i][0];
             int col = checkpoints[i][1];
 
@@ -320,54 +330,38 @@ public class GameView extends View {
 
             float radius = cellSize * 0.25f;
 
-            // First checkpoint gets green ring
+            // Green outer ring for the starting checkpoint
             if (i == 0) {
-
                 paint.setStyle(Paint.Style.FILL);
-                paint.setColor(
-                        CHECKPOINT_START_COLOR
-                );
-
+                paint.setColor(CHECKPOINT_START_COLOR);
                 canvas.drawCircle(
                         x,
                         y,
-                        radius + cellSize * 0.07f,
+                        radius + cellSize * 0.065f,
                         paint
                 );
             }
 
-            // Black circle
+            // Black checkpoint circle
             paint.setStyle(Paint.Style.FILL);
-            paint.setColor(
-                    CHECKPOINT_COLOR
-            );
+            paint.setColor(CHECKPOINT_COLOR);
+            canvas.drawCircle(x, y, radius, paint);
 
-            canvas.drawCircle(
-                    x,
-                    y,
-                    radius,
-                    paint
-            );
-
-            // Number
+            // White checkpoint number
             paint.setColor(Color.WHITE);
-            paint.setTextSize(
-                    cellSize * 0.28f
+            paint.setTextAlign(Paint.Align.CENTER);
+            paint.setTextSize(cellSize * 0.28f);
+            paint.setTypeface(
+                    android.graphics.Typeface.create(
+                            "sans-serif",
+                            android.graphics.Typeface.BOLD
+                    )
             );
 
-            paint.setTextAlign(
-                    Paint.Align.CENTER
-            );
+            Paint.FontMetrics metrics = paint.getFontMetrics();
 
-            paint.setFakeBoldText(true);
-
-            Paint.FontMetrics metrics =
-                    paint.getFontMetrics();
-
-            float textY =
-                    y -
-                            (metrics.ascent +
-                                    metrics.descent) / 2;
+            float textY = y
+                    - (metrics.ascent + metrics.descent) / 2f;
 
             canvas.drawText(
                     String.valueOf(i + 1),
@@ -375,10 +369,16 @@ public class GameView extends View {
                     textY,
                     paint
             );
-
-            paint.setFakeBoldText(false);
         }
+
+        // Reset paint settings for other drawing operations
+        paint.setStyle(Paint.Style.FILL);
+        paint.setTextAlign(Paint.Align.LEFT);
+        paint.setTypeface(
+                android.graphics.Typeface.DEFAULT
+        );
     }
+
     public void undoMove() {
 
         if (gameCompleted) {
@@ -392,68 +392,66 @@ public class GameView extends View {
         path.remove(path.size() - 1);
 
         notifyProgress();
-
+        hintCell = null;
         invalidate();
     }
+
     public void showHint() {
 
-        if (gameCompleted ||
-                path.isEmpty() ||
-                solutionPath == null) {
-
+        if (gameCompleted || solutionPath == null
+                || solutionPath.length == 0) {
             return;
         }
 
-        int[] lastCell =
-                path.get(path.size() - 1);
+        int[] lastCell;
 
-        int solutionIndex =
-                findSolutionIndex(
-                        lastCell[0],
-                        lastCell[1]
-                );
+        // If the player hasn't moved, start from
+        // the first cell in the solution.
+        if (path.isEmpty()) {
+            lastCell = solutionPath[0];
+        } else {
+            lastCell = path.get(path.size() - 1);
+        }
 
-        if (solutionIndex == -1 ||
-                solutionIndex >= solutionPath.length - 1) {
+        int solutionIndex = findSolutionIndex(
+                lastCell[0],
+                lastCell[1]
+        );
 
+        if (solutionIndex == -1
+                || solutionIndex >= solutionPath.length - 1) {
             return;
         }
 
-        // Look for the next unvisited cell
-        // from the generated solution.
+        // Find the next valid cell in the solution.
         for (int i = solutionIndex + 1;
              i < solutionPath.length;
              i++) {
 
-            int row =
-                    solutionPath[i][0];
+            int row = solutionPath[i][0];
+            int col = solutionPath[i][1];
 
-            int col =
-                    solutionPath[i][1];
+            if (!isCellInPath(row, col)
+                    && isAdjacent(
+                    lastCell[0],
+                    lastCell[1],
+                    row,
+                    col
+            )
+                    && !isWallBetween(
+                    lastCell[0],
+                    lastCell[1],
+                    row,
+                    col
+            )) {
 
-            if (!isCellInPath(row, col) &&
-                    isAdjacent(
-                            lastCell[0],
-                            lastCell[1],
-                            row,
-                            col
-                    ) &&
-                    !isWallBetween(
-                            lastCell[0],
-                            lastCell[1],
-                            row,
-                            col
-                    )) {
-
-                hintCell =
-                        new int[]{row, col};
-
+                hintCell = new int[]{row, col};
                 invalidate();
-
                 return;
             }
         }
     }
+
     private int findSolutionIndex(
             int row,
             int col) {
@@ -606,7 +604,7 @@ public class GameView extends View {
 
                     path.clear();
                     path.add(new int[]{row, col});
-
+                    hintCell = null;
                     invalidate();
                 }
 

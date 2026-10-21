@@ -15,6 +15,9 @@
             android:name=".MainActivity"
             android:exported="false" />
         <activity
+            android:name=".LeaderboardActivity"
+            android:exported="false" />
+        <activity
             android:name=".StageSelectionActivity"
             android:exported="true">
 

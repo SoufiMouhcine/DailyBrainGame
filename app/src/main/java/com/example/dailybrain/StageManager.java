@@ -1,25 +1,21 @@
+
 package com.example.dailybrain;
 
 public class StageManager {
 
     public static Puzzle getStage(int stageNumber) {
 
-        int numberOfCheckpoints;
+        // Keep stage numbers valid.
+        stageNumber = Math.max(1, stageNumber);
 
-        if (stageNumber <= 3) {
-            numberOfCheckpoints = 3;
-        } else if (stageNumber <= 6) {
-            numberOfCheckpoints = 5;
-        } else if (stageNumber <= 10) {
-            numberOfCheckpoints = 7;
-        } else {
-            numberOfCheckpoints = 7;
-        }
+        int difficulty = getDifficulty(stageNumber);
+        int numberOfCheckpoints =
+                getNumberOfCheckpoints(stageNumber);
 
         return PuzzleGenerator.generate(
                 stageNumber,
                 numberOfCheckpoints,
-                getDifficulty(stageNumber)
+                difficulty
         );
     }
 
@@ -31,6 +27,22 @@ public class StageManager {
             return 2;
         } else {
             return 3;
+        }
+    }
+
+    private static int getNumberOfCheckpoints(
+            int stageNumber) {
+
+        if (stageNumber <= 2) {
+            return 3;
+        } else if (stageNumber <= 4) {
+            return 4;
+        } else if (stageNumber <= 6) {
+            return 5;
+        } else if (stageNumber <= 8) {
+            return 6;
+        } else {
+            return 7;
         }
     }
 }

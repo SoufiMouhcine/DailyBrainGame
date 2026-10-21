@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "864485885445",
+    "project_id": "dailybrain-761f9",
+    "storage_bucket": "dailybrain-761f9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:864485885445:android:7da70df5f252b87ab67e6c",
+        "android_client_info": {
+          "package_name": "com.example.dailybrain"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD2gVjj9MrDBp7dPg1ognsFH7lnhhquWaI"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

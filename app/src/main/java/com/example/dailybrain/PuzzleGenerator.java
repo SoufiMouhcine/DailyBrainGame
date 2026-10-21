@@ -32,7 +32,8 @@ public class PuzzleGenerator {
                 generateCheckpoints(
                         path,
                         numberOfCheckpoints,
-                        difficulty
+                        difficulty,
+                        random
                 );
 
         boolean[][] horizontalWalls =
@@ -49,8 +50,19 @@ public class PuzzleGenerator {
                         random
                 );
 
+
         int[][] solutionPath =
                 convertPathToArray(path);
+
+        if (!isValidSolution(
+                solutionPath,
+                horizontalWalls,
+                verticalWalls)) {
+
+            throw new IllegalStateException(
+                    "Generated puzzle has an invalid solution"
+            );
+        }
 
         return new Puzzle(
                 checkpoints,
@@ -58,6 +70,7 @@ public class PuzzleGenerator {
                 verticalWalls,
                 solutionPath
         );
+
     }
 
     private static int[][] convertPathToArray(
@@ -298,24 +311,48 @@ public class PuzzleGenerator {
         directions.add(new int[]{0, -1}); // left
         directions.add(new int[]{0, 1});  // right
 
-        if (difficulty == 1) {
 
-            // Easy: random but relatively predictable
-            Collections.shuffle(directions, random);
+        if (difficulty == 1 && path.size() >= 2) {
 
-        } else if (difficulty == 2) {
+            // Easy: prefer continuing in the same direction.
+            int[] previous = path.get(path.size() - 2);
+            int[] current = path.get(path.size() - 1);
 
-            // Medium: more random decisions
-            Collections.shuffle(directions, random);
-            Collections.shuffle(directions, random);
+            int directionRow = current[0] - previous[0];
+            int directionCol = current[1] - previous[1];
+
+            // Put the straight-ahead direction first.
+            directions.removeIf(direction ->
+                    direction[0] == directionRow
+                            && direction[1] == directionCol
+            );
+
+            directions.add(0, new int[]{
+                    directionRow, directionCol
+            });
+
+            // Randomize the remaining directions.
+            List<int[]> remaining =
+                    new ArrayList<>(directions.subList(1, directions.size()));
+
+            Collections.shuffle(remaining, random);
+
+            directions.clear();
+            directions.add(new int[]{
+                    directionRow, directionCol
+            });
+            directions.addAll(remaining);
 
         } else {
 
-            // Hard: highly unpredictable
+            // Medium and Hard: explore directions randomly.
             Collections.shuffle(directions, random);
-            Collections.shuffle(directions, random);
-            Collections.shuffle(directions, random);
+
+            if (difficulty >= 3) {
+                Collections.shuffle(directions, random);
+            }
         }
+
 
         for (int[] direction : directions) {
 
@@ -428,45 +465,77 @@ public class PuzzleGenerator {
 
         return bestPath;
     }
+
     private static int[][] generateCheckpoints(
             List<int[]> path,
             int numberOfCheckpoints,
-            int difficulty) {
+            int difficulty,
+            Random random) {
+
+        if (numberOfCheckpoints < 2 ||
+                numberOfCheckpoints > path.size()) {
+            throw new IllegalArgumentException(
+                    "Checkpoint count must be between 2 and "
+                            + path.size()
+            );
+        }
 
         int[][] checkpoints =
                 new int[numberOfCheckpoints][2];
 
-        int previousIndex = -1;
+        // First checkpoint: beginning of the solution.
+        checkpoints[0][0] = path.get(0)[0];
+        checkpoints[0][1] = path.get(0)[1];
 
-        for (int i = 0; i < numberOfCheckpoints; i++) {
+        // Last checkpoint: end of the solution.
+        int lastCheckpoint = numberOfCheckpoints - 1;
+        int lastPathIndex = path.size() - 1;
 
-            int minIndex =
-                    i * (TOTAL_CELLS - 1)
-                            / (numberOfCheckpoints - 1);
+        checkpoints[lastCheckpoint][0] =
+                path.get(lastPathIndex)[0];
+        checkpoints[lastCheckpoint][1] =
+                path.get(lastPathIndex)[1];
 
-            int maxIndex =
-                    (i + 1) * (TOTAL_CELLS - 1)
-                            / (numberOfCheckpoints - 1);
+        int previousIndex = 0;
 
-            int index;
+        int segmentSize =
+                Math.max(1, lastPathIndex / lastCheckpoint);
 
-            if (i == 0) {
-                index = 0;
-            } else if (i == numberOfCheckpoints - 1) {
-                index = TOTAL_CELLS - 1;
-            } else {
+        int variation;
 
-                int range = Math.max(1, maxIndex - minIndex);
+        if (difficulty == 1) {
+            variation = Math.max(1, segmentSize / 4);
+        } else if (difficulty == 2) {
+            variation = Math.max(1, segmentSize / 3);
+        } else {
+            variation = Math.max(1, segmentSize / 2);
+        }
 
-                if (difficulty == 1) {
-                    index = minIndex;
-                } else {
-                    index = minIndex + range / 2;
-                }
-            }
+        // Place intermediate checkpoints at varied positions.
+        for (int i = 1; i < lastCheckpoint; i++) {
 
-            if (index <= previousIndex) {
-                index = previousIndex + 1;
+            int idealIndex =
+                    i * lastPathIndex / lastCheckpoint;
+
+            int minIndex = Math.max(
+                    previousIndex + 1,
+                    idealIndex - variation
+            );
+
+            // Reserve enough cells for remaining checkpoints.
+            int maxIndex = Math.min(
+                    idealIndex + variation,
+                    lastPathIndex
+                            - (lastCheckpoint - i)
+            );
+
+            int index = minIndex;
+
+            if (maxIndex > minIndex) {
+                index = minIndex
+                        + random.nextInt(
+                        maxIndex - minIndex + 1
+                );
             }
 
             checkpoints[i][0] = path.get(index)[0];
@@ -477,4 +546,77 @@ public class PuzzleGenerator {
 
         return checkpoints;
     }
+
+    private static boolean isValidSolution(
+            int[][] solutionPath,
+            boolean[][] horizontalWalls,
+            boolean[][] verticalWalls) {
+
+        if (solutionPath == null ||
+                solutionPath.length != TOTAL_CELLS) {
+            return false;
+        }
+
+        boolean[][] visited =
+                new boolean[SIZE][SIZE];
+
+        for (int i = 0; i < solutionPath.length; i++) {
+
+            int row = solutionPath[i][0];
+            int col = solutionPath[i][1];
+
+            // Check grid boundaries.
+            if (row < 0 || row >= SIZE ||
+                    col < 0 || col >= SIZE) {
+                return false;
+            }
+
+            // Every cell must be visited only once.
+            if (visited[row][col]) {
+                return false;
+            }
+
+            visited[row][col] = true;
+
+            if (i == 0) {
+                continue;
+            }
+
+            int previousRow = solutionPath[i - 1][0];
+            int previousCol = solutionPath[i - 1][1];
+
+            int distance =
+                    Math.abs(row - previousRow)
+                            + Math.abs(col - previousCol);
+
+            // Moves must be to adjacent cells.
+            if (distance != 1) {
+                return false;
+            }
+
+            // Check walls between the previous and current cells.
+            if (row != previousRow) {
+
+                int wallRow =
+                        Math.min(row, previousRow);
+
+                if (horizontalWalls[wallRow][col]) {
+                    return false;
+                }
+
+            } else {
+
+                int wallCol =
+                        Math.min(col, previousCol);
+
+                if (verticalWalls[row][wallCol]) {
+                    return false;
+                }
+            }
+        }
+
+        return true;
+    }
+
+
 }

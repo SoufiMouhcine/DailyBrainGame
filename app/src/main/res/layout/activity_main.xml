@@ -129,19 +129,85 @@
     </FrameLayout>
 
     <!-- Result message -->
-    <TextView
-        android:id="@+id/resultText"
+
+
+    <LinearLayout
+        android:id="@+id/completionPanel"
         android:layout_width="match_parent"
-        android:layout_height="28dp"
-        android:text=""
-        android:textColor="#4ADE80"
-        android:textSize="16sp"
-        android:textStyle="bold"
-        android:gravity="center" />
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:padding="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:background="#101827"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="🏆"
+            android:textSize="36sp"
+            android:layout_marginBottom="6dp" />
+
+        <TextView
+            android:id="@+id/completionTitle"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="STAGE COMPLETE!"
+            android:textColor="#4CC846"
+            android:textSize="22sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+
+        <TextView
+            android:id="@+id/completionTime"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text=""
+            android:textColor="#FFFFFF"
+            android:textSize="18sp"
+            android:textStyle="bold" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="8dp"
+            android:text="Great job! Ready for the next challenge?"
+            android:textColor="#AAB4C5"
+            android:textSize="14sp"
+            android:gravity="center" />
+
+        <Button
+            android:id="@+id/nextStageButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="16dp"
+            android:text="NEXT STAGE  →"
+            android:textColor="#102018"
+            android:textStyle="bold"
+            android:backgroundTint="#4CC846" />
+
+        <Button
+            android:id="@+id/replayButton"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:layout_marginTop="8dp"
+            android:text="↻  REPLAY"
+            android:textColor="#FFFFFF"
+            android:textStyle="bold"
+            android:backgroundTint="#334155" />
+
+
+    </LinearLayout>
+
+
 
     <!-- Reset button -->
     <!-- Game controls -->
     <LinearLayout
+        android:id="@+id/gameControls"
         android:layout_width="match_parent"
         android:layout_height="46dp"
         android:orientation="horizontal"

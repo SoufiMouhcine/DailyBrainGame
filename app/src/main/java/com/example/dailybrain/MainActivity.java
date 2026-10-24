@@ -13,7 +13,8 @@ import com.google.firebase.auth.FirebaseUser;
 import androidx.appcompat.app.AppCompatActivity;
 
 public class MainActivity extends AppCompatActivity {
-
+    private boolean practiceMode = false;
+    private boolean dailyChallengeMode = false;
     private GameView gameView;
     private android.view.View completionPanel;
     private TextView completionTitle;
@@ -60,7 +61,15 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        practiceMode = getIntent().getBooleanExtra(
+                "practice_mode",
+                false
+        );
 
+        dailyChallengeMode = getIntent().getBooleanExtra(
+                "daily_challenge",
+                false
+        );
         firebaseAuth = FirebaseAuth.getInstance();
         signInPlayer();
         gameControls = findViewById(R.id.gameControls);
@@ -73,17 +82,29 @@ public class MainActivity extends AppCompatActivity {
         int stageNumber =
                 getIntent().getIntExtra("stage_number", 1);
 
-        Puzzle puzzle =
-                StageManager.getStage(stageNumber);
+        Puzzle puzzle;
+
+        if (dailyChallengeMode) {
+            puzzle = DailyChallengeManager.generateTodayPuzzle();
+        } else {
+            puzzle = StageManager.getStage(stageNumber);
+        }
 
         gameView.setPuzzle(puzzle);
 
         TextView puzzleNumberText =
                 findViewById(R.id.puzzleNumberText);
 
-        puzzleNumberText.setText(
-                "STAGE #" + stageNumber
-        );
+        if (dailyChallengeMode) {
+            puzzleNumberText.setText(
+                    "DAILY CHALLENGE · "
+                            + DailyChallengeManager.getTodayDateKey()
+            );
+        } else {
+            puzzleNumberText.setText(
+                    "STAGE #" + stageNumber
+            );
+        }
 
         cellCounter = findViewById(R.id.cellCounter);
         timerText = findViewById(R.id.timerText);
@@ -115,21 +136,59 @@ public class MainActivity extends AppCompatActivity {
                 startActivity(intent);
             }
 
+
             @Override
             public void onGameCompleted() {
 
-// Calculate the precise completion time
+                // Calculate the completion time
                 long completionTimeMs = timerRunning
                         ? System.currentTimeMillis() - startTime
                         : 0;
 
-// Stop the timer
+                // Stop the timer
                 stopTimer();
 
-// Get the completed stage
+                // Get the completed stage
                 int completedStage =
                         getIntent().getIntExtra("stage_number", 1);
-// Save the player's best time online
+
+                // Prepare the displayed completion time
+                String elapsedTime = timerText.getText().toString()
+                        .replace("Time: ", "")
+                        .replace("TIME: ", "");
+
+                // Update the completion screen
+                completionTitle.setText(
+                        practiceMode
+                                ? "PRACTICE COMPLETE!"
+                                : "STAGE " + completedStage + " COMPLETE!"
+                );
+
+                completionTime.setText("TIME: " + elapsedTime);
+
+                completionPanel.setVisibility(View.VISIBLE);
+                gameControls.setVisibility(View.GONE);
+                gameView.setEnabled(false);
+
+                // Practice runs must not affect official results or progression.
+                if (practiceMode) {
+                    return;
+                }
+
+                // Unlock the next stage for an official completion
+                android.content.SharedPreferences preferences =
+                        getSharedPreferences("game_progress", MODE_PRIVATE);
+
+                int unlockedStage =
+                        preferences.getInt("unlocked_stage", 1);
+
+                if (completedStage >= unlockedStage) {
+                    preferences.edit()
+                            .putInt("unlocked_stage", completedStage + 1)
+                            .apply();
+                }
+
+                // Save the first official score and open the leaderboard
                 PlayerManager.createOrLoadPlayer(
                         new PlayerManager.PlayerCallback() {
 
@@ -144,17 +203,21 @@ public class MainActivity extends AppCompatActivity {
                                         displayName,
                                         new LeaderboardManager.LeaderboardCallback() {
 
-
                                             @Override
-                                            public void onSaved(boolean newBest, long bestTimeMs) {
+                                            public void onSaved(
+                                                    boolean newBest,
+                                                    long bestTimeMs) {
+
                                                 android.util.Log.d(
                                                         "DailyBrain",
                                                         newBest
-                                                                ? "New personal best saved!"
-                                                                : "Existing personal best retained."
+                                                                ? "First official score saved!"
+                                                                : "Official score preserved; replay did not change it."
                                                 );
 
-                                                runOnUiThread(() -> openLeaderboard(completedStage));
+                                                runOnUiThread(
+                                                        () -> openLeaderboard(completedStage)
+                                                );
                                             }
 
                                             @Override
@@ -165,7 +228,9 @@ public class MainActivity extends AppCompatActivity {
                                                         exception
                                                 );
 
-                                                runOnUiThread(() -> openLeaderboard(completedStage));
+                                                runOnUiThread(
+                                                        () -> openLeaderboard(completedStage)
+                                                );
                                             }
                                         }
                                 );
@@ -178,40 +243,13 @@ public class MainActivity extends AppCompatActivity {
                                         "Could not load player for leaderboard",
                                         exception
                                 );
+
+                                // Keep the completion screen available if Firebase fails.
                             }
                         }
                 );
-                // Save unlocked stage
-                android.content.SharedPreferences preferences =
-                        getSharedPreferences("game_progress", MODE_PRIVATE);
-
-                int unlockedStage =
-                        preferences.getInt("unlocked_stage", 1);
-
-                if (completedStage >= unlockedStage) {
-                    preferences.edit()
-                            .putInt("unlocked_stage", completedStage + 1)
-                            .apply();
-                }
-
-                // Show completion message instead of closing immediately
-                String elapsedTime = timerText.getText().toString()
-                        .replace("Time: ", "")
-                        .replace("TIME: ", "");
-
-                completionTitle.setText(
-                        "STAGE " + completedStage + " COMPLETE!"
-                );
-
-                completionTime.setText("TIME: " + elapsedTime);
-
-                completionPanel.setVisibility(android.view.View.VISIBLE);
-                gameControls.setVisibility(View.GONE);
-                gameView.setEnabled(false);
-
-                // Hide the game controls after winning
-                gameView.setEnabled(false);
             }
+
 
         });
 
@@ -235,17 +273,34 @@ public class MainActivity extends AppCompatActivity {
             finish();
         });
 
-        replayButton.setOnClickListener(v -> {
-            android.content.Intent intent =
-                    new android.content.Intent(
-                            MainActivity.this,
-                            MainActivity.class
-                    );
 
-            intent.putExtra("stage_number", stageNumber);
-            startActivity(intent);
-            finish();
+        replayButton.setOnClickListener(v -> {
+            new androidx.appcompat.app.AlertDialog.Builder(MainActivity.this)
+                    .setTitle("Practice replay?")
+                    .setMessage(
+                            "You've already completed this stage. " +
+                                    "Your original time and official leaderboard rank " +
+                                    "will remain unchanged. This replay is for practice only."
+                    )
+                    .setNegativeButton("Cancel", (dialog, which) -> {
+                        dialog.dismiss();
+                    })
+                    .setPositiveButton("Practice", (dialog, which) -> {
+                        android.content.Intent intent =
+                                new android.content.Intent(
+                                        MainActivity.this,
+                                        MainActivity.class
+                                );
+
+                        intent.putExtra("stage_number", stageNumber);
+                        intent.putExtra("practice_mode", true);
+
+                        startActivity(intent);
+                        finish();
+                    })
+                    .show();
         });
+
     }
 
     private void signInPlayer() {

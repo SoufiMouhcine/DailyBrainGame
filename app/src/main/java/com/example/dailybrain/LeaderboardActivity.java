@@ -10,16 +10,22 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 import com.google.firebase.firestore.AggregateSource;
 import androidx.appcompat.app.AppCompatActivity;
-
+import java.util.HashSet;
+import java.util.Set;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
-
+import android.content.Intent;
+import android.view.View;
+import android.widget.Button;
 import java.util.Locale;
+import android.graphics.drawable.GradientDrawable;
 
 public class LeaderboardActivity extends AppCompatActivity {
-
+    private final Set<String> topPlayerIds = new HashSet<>();
+    private long currentPlayerRank = -1;
     private LinearLayout scoresContainer;
     private TextView playerRankView;
+    private LinearLayout personalScoreContainer;
     private String currentPlayerId;
     private int stageNumber;
 
@@ -34,54 +40,287 @@ public class LeaderboardActivity extends AppCompatActivity {
                     FirebaseAuth.getInstance().getCurrentUser().getUid();
         }
 
+
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
-        root.setPadding(24, 28, 24, 24);
+        root.setPadding(dp(20), dp(22), dp(20), dp(16));
         root.setBackgroundColor(Color.rgb(16, 24, 39));
 
+// Header
         TextView title = new TextView(this);
-        title.setText("STAGE " + stageNumber + " LEADERBOARD");
+        title.setText("STAGE " + stageNumber);
         title.setTextColor(Color.WHITE);
-        title.setTextSize(22);
+        title.setTextSize(26);
         title.setTypeface(null, Typeface.BOLD);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
 
         TextView subtitle = new TextView(this);
-        subtitle.setText("FASTEST TIMES");
+        subtitle.setText("GLOBAL LEADERBOARD");
         subtitle.setTextColor(Color.rgb(100, 181, 246));
         subtitle.setTextSize(13);
         subtitle.setGravity(Gravity.CENTER);
-        subtitle.setPadding(0, 8, 0, 24);
-        root.addView(subtitle);
-        playerRankView = new TextView(this);
-        playerRankView.setText("YOUR RANK: Calculating...");
-        playerRankView.setTextColor(Color.WHITE);
-        playerRankView.setTextSize(16);
-        playerRankView.setGravity(Gravity.CENTER);
-        playerRankView.setPadding(12, 12, 12, 20);
+        subtitle.setLetterSpacing(0.08f);
 
-        root.addView(playerRankView);
+        LinearLayout.LayoutParams subtitleParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        subtitleParams.bottomMargin = dp(22);
+        root.addView(subtitle, subtitleParams);
+
+// Player rank card
+        LinearLayout rankCard = new LinearLayout(this);
+        rankCard.setOrientation(LinearLayout.VERTICAL);
+        rankCard.setPadding(dp(18), dp(16), dp(18), dp(16));
+        rankCard.setBackground(
+                roundedBackground(Color.rgb(27, 42, 64), 18)
+        );
+
+        TextView rankLabel = new TextView(this);
+        rankLabel.setText("YOUR OFFICIAL RANK");
+        rankLabel.setTextColor(Color.rgb(155, 174, 199));
+        rankLabel.setTextSize(12);
+        rankLabel.setTypeface(null, Typeface.BOLD);
+        rankCard.addView(rankLabel);
+
+        playerRankView = new TextView(this);
+        playerRankView.setText("Calculating your rank...");
+        playerRankView.setTextColor(Color.WHITE);
+        playerRankView.setTextSize(23);
+        playerRankView.setTypeface(null, Typeface.BOLD);
+        playerRankView.setPadding(0, dp(8), 0, 0);
+        rankCard.addView(playerRankView);
+
+        LinearLayout.LayoutParams rankParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        rankParams.bottomMargin = dp(24);
+        root.addView(rankCard, rankParams);
+
+// Leaderboard section heading
+        TextView listTitle = new TextView(this);
+        listTitle.setText("FASTEST PLAYERS");
+        listTitle.setTextColor(Color.WHITE);
+        listTitle.setTextSize(17);
+        listTitle.setTypeface(null, Typeface.BOLD);
+
+        LinearLayout.LayoutParams listTitleParams =
+                new LinearLayout.LayoutParams(-1, -2);
+        listTitleParams.bottomMargin = dp(12);
+        root.addView(listTitle, listTitleParams);
+
+// Scrollable scores and personal result
         ScrollView scrollView = new ScrollView(this);
+        scrollView.setFillViewport(false);
+
+        LinearLayout contentContainer = new LinearLayout(this);
+        contentContainer.setOrientation(LinearLayout.VERTICAL);
 
         scoresContainer = new LinearLayout(this);
         scoresContainer.setOrientation(LinearLayout.VERTICAL);
+        contentContainer.addView(scoresContainer);
 
-        scrollView.addView(scoresContainer);
+        personalScoreContainer = new LinearLayout(this);
+        personalScoreContainer.setOrientation(LinearLayout.VERTICAL);
+        personalScoreContainer.setPadding(0, dp(12), 0, 0);
+        contentContainer.addView(personalScoreContainer);
+
+        scrollView.addView(contentContainer);
 
         root.addView(
                 scrollView,
                 new LinearLayout.LayoutParams(
                         LinearLayout.LayoutParams.MATCH_PARENT,
                         0,
-                        1
+                        1f
                 )
+        );
+
+// Fixed bottom navigation
+        LinearLayout footer = new LinearLayout(this);
+        footer.setOrientation(LinearLayout.VERTICAL);
+        footer.setPadding(0, dp(14), 0, 0);
+
+        Button continueButton = new Button(this);
+        continueButton.setText("CONTINUE TO NEXT STAGE");
+        continueButton.setAllCaps(false);
+        continueButton.setTextColor(Color.rgb(16, 24, 39));
+        continueButton.setTextSize(15);
+        continueButton.setTypeface(null, Typeface.BOLD);
+        continueButton.setBackground(
+                roundedBackground(Color.rgb(100, 220, 130), 14)
+        );
+        continueButton.setElevation(dp(2));
+
+        continueButton.setOnClickListener(v -> {
+
+            int nextStage = stageNumber + 1;
+
+            android.content.SharedPreferences preferences =
+                    getSharedPreferences("game_progress", MODE_PRIVATE);
+
+            int unlockedStage =
+                    preferences.getInt("unlocked_stage", 1);
+
+            // Do not allow the player to enter a locked stage.
+            if (nextStage > unlockedStage) {
+                nextStage = unlockedStage;
+            }
+
+            android.content.Intent intent =
+                    new android.content.Intent(
+                            LeaderboardActivity.this,
+                            MainActivity.class
+                    );
+
+            intent.putExtra("stage_number", nextStage);
+
+            startActivity(intent);
+            finish();
+        });
+
+        footer.addView(
+                continueButton,
+                new LinearLayout.LayoutParams(-1, dp(54))
+        );
+
+        Button allStagesButton = new Button(this);
+        allStagesButton.setText("ALL STAGES");
+        allStagesButton.setAllCaps(false);
+        allStagesButton.setTextColor(Color.WHITE);
+        allStagesButton.setTextSize(14);
+        allStagesButton.setBackground(
+                roundedBackground(Color.rgb(36, 51, 74), 14)
+        );
+
+        LinearLayout.LayoutParams allStagesParams =
+                new LinearLayout.LayoutParams(-1, dp(48));
+        allStagesParams.topMargin = dp(8);
+        footer.addView(allStagesButton, allStagesParams);
+
+        allStagesButton.setOnClickListener(v -> {
+            android.content.Intent intent =
+                    new android.content.Intent(
+                            LeaderboardActivity.this,
+                            StageSelectionActivity.class
+                    );
+
+            startActivity(intent);
+            finish();
+        });
+
+        root.addView(
+                footer,
+                new LinearLayout.LayoutParams(-1, -2)
         );
 
         setContentView(root);
 
         loadLeaderboard();
         loadPlayerRank();
+        loadPersonalScore();
+    }
+
+    private void loadPersonalScore() {
+        personalScoreContainer.removeAllViews();
+
+        if (currentPlayerId == null) {
+            return;
+        }
+
+        FirebaseFirestore.getInstance()
+                .collection("stageLeaderboards")
+                .document(String.valueOf(stageNumber))
+                .collection("scores")
+                .document(currentPlayerId)
+                .get()
+                .addOnSuccessListener(document -> {
+
+                    if (isFinishing() || isDestroyed()
+                            || !document.exists()) {
+                        return;
+                    }
+
+                    Long timeMs = document.getLong("bestTimeMs");
+                    String displayName = document.getString("displayName");
+
+                    if (timeMs == null) {
+                        return;
+                    }
+
+                    if (displayName == null) {
+                        displayName = "Player";
+                    }
+
+                    TextView heading = new TextView(this);
+                    heading.setText("YOUR PERSONAL RESULT");
+                    heading.setTextColor(Color.rgb(100, 181, 246));
+                    heading.setTextSize(14);
+                    heading.setTypeface(null, Typeface.BOLD);
+                    heading.setPadding(0, 8, 0, 12);
+
+                    personalScoreContainer.addView(heading);
+
+                    // The global rank is displayed in playerRankView.
+                    // Show this separate row only when the player
+                    // isn't already among the top 50.
+                    int rank = 1;
+                    for (int i = 0; i < scoresContainer.getChildCount(); i++) {
+                        // The exact global rank is calculated separately.
+                    }
+
+                    if (!topPlayerIds.contains(currentPlayerId)) {
+                        addPersonalScoreRow((int) currentPlayerRank,displayName, timeMs);
+                    }
+                })
+                .addOnFailureListener(error ->
+                        android.util.Log.e(
+                                "DailyBrain",
+                                "Failed to load personal score",
+                                error
+                        ));
+    }
+
+    private void addPersonalScoreRow(
+            int rank,
+            String displayName,
+            long timeMs) {
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(14, 16, 14, 16);
+        row.setBackgroundColor(Color.rgb(35, 65, 75));
+        TextView rankView = new TextView(this);
+        rankView.setText("#" + rank);
+        rankView.setTextColor(Color.rgb(100, 181, 246));
+        rankView.setTypeface(null, Typeface.BOLD);
+        rankView.setTextSize(15);
+
+        row.addView(
+                rankView,
+                new LinearLayout.LayoutParams(65, -2)
+        );
+        TextView nameView = new TextView(this);
+        nameView.setText(displayName + " (YOU)");
+        nameView.setTextColor(Color.WHITE);
+        nameView.setTextSize(15);
+        nameView.setSingleLine(true);
+        nameView.setEllipsize(
+                android.text.TextUtils.TruncateAt.END
+        );
+
+        TextView timeView = new TextView(this);
+        timeView.setText(formatTime(timeMs));
+        timeView.setTextColor(Color.rgb(100, 220, 130));
+        timeView.setTextSize(14);
+        timeView.setTypeface(null, Typeface.BOLD);
+
+        row.addView(
+                nameView,
+                new LinearLayout.LayoutParams(0, -2, 1)
+        );
+        row.addView(timeView);
+
+        personalScoreContainer.addView(row);
     }
 
     private void loadPlayerRank() {
@@ -137,7 +376,7 @@ public class LeaderboardActivity extends AppCompatActivity {
                                 }
 
                                 long rank = fasterSnapshot.getCount() + 1;
-
+                                currentPlayerRank = rank;
                                 // Count all players with a score for this stage.
                                 scoresRef.count()
                                         .get(AggregateSource.SERVER)
@@ -210,7 +449,7 @@ public class LeaderboardActivity extends AppCompatActivity {
                 .get()
                 .addOnSuccessListener(snapshot -> {
                     scoresContainer.removeAllViews();
-
+                    topPlayerIds.clear();
                     if (snapshot.isEmpty()) {
                         addMessage("No scores yet. Be the first!");
                         return;
@@ -222,6 +461,9 @@ public class LeaderboardActivity extends AppCompatActivity {
                             : snapshot.getDocuments()) {
 
                         String playerId = doc.getString("playerId");
+                        if (playerId != null) {
+                            topPlayerIds.add(playerId);
+                        }
                         String displayName = doc.getString("displayName");
                         Long timeMs = doc.getLong("bestTimeMs");
 
@@ -350,6 +592,23 @@ public class LeaderboardActivity extends AppCompatActivity {
         textView.setGravity(Gravity.CENTER);
         textView.setPadding(12, 28, 12, 28);
         scoresContainer.addView(textView);
+    }
+
+    private int dp(float value) {
+        return (int) (
+                value * getResources().getDisplayMetrics().density + 0.5f
+        );
+    }
+
+    private GradientDrawable roundedBackground(
+            int color,
+            int radiusDp) {
+
+        GradientDrawable background = new GradientDrawable();
+        background.setColor(color);
+        background.setCornerRadius(dp(radiusDp));
+
+        return background;
     }
 
     private String formatTime(long milliseconds) {

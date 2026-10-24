@@ -26,7 +26,19 @@
         android:textStyle="bold"
         android:gravity="center"
         android:layout_marginTop="8dp"
-        android:layout_marginBottom="24dp" />
+        android:layout_marginBottom="20dp" />
+
+    <Button
+        android:id="@+id/dailyChallengeButton"
+        android:layout_width="match_parent"
+        android:layout_height="58dp"
+        android:text="📅  DAILY CHALLENGE"
+        android:textAllCaps="false"
+        android:textSize="16sp"
+        android:textStyle="bold"
+        android:textColor="#101827"
+        android:backgroundTint="#64DC82"
+        android:layout_marginBottom="20dp" />
 
     <GridLayout
         android:id="@+id/stageGrid"

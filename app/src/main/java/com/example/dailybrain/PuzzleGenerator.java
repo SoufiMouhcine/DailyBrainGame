@@ -73,6 +73,24 @@ public class PuzzleGenerator {
 
     }
 
+
+    public static Puzzle generateDailyPuzzle(String dateKey) {
+
+        // The same date produces the same puzzle.
+        int seed = dateKey.hashCode();
+
+        // Daily Challenge uses a harder configuration.
+        int numberOfCheckpoints = 8;
+        int difficulty = 5;
+
+        return generate(
+                seed,
+                numberOfCheckpoints,
+                difficulty
+        );
+    }
+
+
     private static int[][] convertPathToArray(
             List<int[]> path) {
 
@@ -125,15 +143,16 @@ public class PuzzleGenerator {
                 availableWalls,
                 random
         );
-
         int numberOfWalls;
 
         if (difficulty == 1) {
             numberOfWalls = 3;
         } else if (difficulty == 2) {
             numberOfWalls = 5;
-        } else {
+        } else if (difficulty == 3) {
             numberOfWalls = 7;
+        } else {
+            numberOfWalls = 9;
         }
 
         int wallsToPlace =
@@ -187,15 +206,16 @@ public class PuzzleGenerator {
                 availableWalls,
                 random
         );
-
         int numberOfWalls;
 
         if (difficulty == 1) {
             numberOfWalls = 2;
         } else if (difficulty == 2) {
             numberOfWalls = 4;
-        } else {
+        } else if (difficulty == 3) {
             numberOfWalls = 6;
+        } else {
+            numberOfWalls = 8;
         }
 
         int wallsToPlace =

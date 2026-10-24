@@ -18,12 +18,22 @@ public class LeaderboardManager {
         void onError(Exception exception);
     }
 
+    private static class SaveResult {
+        final boolean firstCompletion;
+        final long officialTimeMs;
+
+        SaveResult(boolean firstCompletion, long officialTimeMs) {
+            this.firstCompletion = firstCompletion;
+            this.officialTimeMs = officialTimeMs;
+        }
+    }
+
     public static void saveBestTime(
             int stageNumber,
             long completionTimeMs,
             String displayName,
-            LeaderboardCallback callback
-    ) {
+            LeaderboardCallback callback) {
+
         FirebaseUser user =
                 FirebaseAuth.getInstance().getCurrentUser();
 
@@ -35,7 +45,8 @@ public class LeaderboardManager {
         }
 
         if (stageNumber < 1 || completionTimeMs <= 0
-                || displayName == null || displayName.trim().isEmpty()) {
+                || displayName == null
+                || displayName.trim().isEmpty()) {
             callback.onError(
                     new IllegalArgumentException("Invalid leaderboard data")
             );
@@ -44,45 +55,54 @@ public class LeaderboardManager {
 
         String playerId = user.getUid();
 
-        FirebaseFirestore db = FirebaseFirestore.getInstance();
-
-        DocumentReference scoreRef = db
+        DocumentReference scoreRef = FirebaseFirestore.getInstance()
                 .collection("stageLeaderboards")
                 .document(String.valueOf(stageNumber))
                 .collection("scores")
                 .document(playerId);
 
-        db.runTransaction(transaction -> {
-            com.google.firebase.firestore.DocumentSnapshot existing =
-                    transaction.get(scoreRef);
+        FirebaseFirestore.getInstance()
+                .runTransaction(transaction -> {
 
-            long previousBest = Long.MAX_VALUE;
+                    com.google.firebase.firestore.DocumentSnapshot existing =
+                            transaction.get(scoreRef);
 
-            if (existing.exists()) {
-                Long savedTime = existing.getLong("bestTimeMs");
+                    // This player already has an official result.
+                    // Never overwrite it, even with a faster time.
+                    if (existing.exists()) {
+                        Long officialTime =
+                                existing.getLong("bestTimeMs");
 
-                if (savedTime != null) {
-                    previousBest = savedTime;
-                }
-            }
+                        if (officialTime == null) {
+                            throw new IllegalStateException(
+                                    "Existing official score is invalid"
+                            );
+                        }
 
-            if (existing.exists() && completionTimeMs >= previousBest) {
-                return previousBest;
-            }
+                        return new SaveResult(false, officialTime);
+                    }
 
-            Map<String, Object> score = new HashMap<>();
-            score.put("playerId", playerId);
-            score.put("displayName", displayName.trim());
-            score.put("stageNumber", stageNumber);
-            score.put("bestTimeMs", completionTimeMs);
-            score.put("completedAt", FieldValue.serverTimestamp());
+                    // First official completion for this stage.
+                    Map<String, Object> score = new HashMap<>();
+                    score.put("playerId", playerId);
+                    score.put("displayName", displayName.trim());
+                    score.put("stageNumber", stageNumber);
+                    score.put("bestTimeMs", completionTimeMs);
+                    score.put(
+                            "completedAt",
+                            FieldValue.serverTimestamp()
+                    );
 
-            transaction.set(scoreRef, score);
+                    transaction.set(scoreRef, score);
 
-            return completionTimeMs;
-        }).addOnSuccessListener(savedBestTime -> {
-            boolean newBest = savedBestTime == completionTimeMs;
-            callback.onSaved(newBest, savedBestTime);
-        }).addOnFailureListener(callback::onError);
+                    return new SaveResult(true, completionTimeMs);
+
+                })
+                .addOnSuccessListener(result ->
+                        callback.onSaved(
+                                result.firstCompletion,
+                                result.officialTimeMs
+                        ))
+                .addOnFailureListener(callback::onError);
     }
 }

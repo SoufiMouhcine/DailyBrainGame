@@ -1,14 +1,19 @@
+
 package com.example.dailybrain;
 
+import android.content.Intent;
 import android.os.Bundle;
+import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.GridLayout;
-import android.app.Activity;
+import android.widget.LinearLayout;
+
 import androidx.appcompat.app.AppCompatActivity;
 
 public class StageSelectionActivity extends AppCompatActivity {
 
     private GridLayout stageGrid;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -18,15 +23,65 @@ public class StageSelectionActivity extends AppCompatActivity {
 
         stageGrid = findViewById(R.id.stageGrid);
 
+        Button dailyButton =
+                findViewById(R.id.dailyChallengeButton);
+
+        dailyButton.setOnClickListener(v -> {
+            Intent intent = new Intent(
+                    StageSelectionActivity.this,
+                    DailyChallengeActivity.class
+            );
+
+            startActivity(intent);
+        });
+
         createStageButtons();
     }
+
+
     @Override
     protected void onResume() {
         super.onResume();
-        createStageButtons();
+
+        if (stageGrid != null) {
+            createStageButtons();
+        }
     }
+
+    private void addDailyChallengeButton() {
+
+        LinearLayout parent =
+                (LinearLayout) stageGrid.getParent();
+
+        Button dailyButton = new Button(this);
+        dailyButton.setText("DAILY CHALLENGE");
+        dailyButton.setTextSize(16);
+
+        dailyButton.setOnClickListener(v -> {
+            Intent intent = new Intent(
+                    StageSelectionActivity.this,
+                    DailyChallengeActivity.class
+            );
+
+            startActivity(intent);
+        });
+
+        int index = parent.indexOfChild(stageGrid);
+
+        parent.addView(
+                dailyButton,
+                index,
+                new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+        );
+    }
+
     private void createStageButtons() {
+
         stageGrid.removeAllViews();
+
         android.content.SharedPreferences preferences =
                 getSharedPreferences("game_progress", MODE_PRIVATE);
 
@@ -46,12 +101,10 @@ public class StageSelectionActivity extends AppCompatActivity {
 
                 final int selectedStage = stage;
 
-                button.setOnClickListener(v -> {
-                    openStage(selectedStage);
-                });
+                button.setOnClickListener(v ->
+                        openStage(selectedStage));
 
             } else {
-
                 button.setEnabled(false);
             }
 
@@ -75,32 +128,12 @@ public class StageSelectionActivity extends AppCompatActivity {
         }
     }
 
-    private void unlockNextStage(int completedStage) {
-
-        android.content.SharedPreferences preferences =
-                getSharedPreferences("game_progress", MODE_PRIVATE);
-
-        int unlockedStage =
-                preferences.getInt("unlocked_stage", 1);
-
-        if (completedStage >= unlockedStage) {
-
-            preferences.edit()
-                    .putInt(
-                            "unlocked_stage",
-                            completedStage + 1
-                    )
-                    .apply();
-        }
-    }
-
     private void openStage(int stageNumber) {
 
-        android.content.Intent intent =
-                new android.content.Intent(
-                        StageSelectionActivity.this,
-                        MainActivity.class
-                );
+        Intent intent = new Intent(
+                StageSelectionActivity.this,
+                MainActivity.class
+        );
 
         intent.putExtra("stage_number", stageNumber);
 

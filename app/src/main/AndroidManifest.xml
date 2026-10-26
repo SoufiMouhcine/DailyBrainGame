@@ -18,6 +18,9 @@
             android:name=".LeaderboardActivity"
             android:exported="false" />
         <activity
+            android:name=".DailyLeaderboardActivity"
+            android:exported="false" />
+        <activity
             android:name=".DailyChallengeActivity"
             android:exported="false" />
         <activity

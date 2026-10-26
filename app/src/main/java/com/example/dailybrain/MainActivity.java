@@ -1,13 +1,14 @@
 
 package com.example.dailybrain;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
-import android.graphics.Color;
+import java.util.HashSet;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import androidx.appcompat.app.AppCompatActivity;
@@ -137,6 +138,20 @@ public class MainActivity extends AppCompatActivity {
             }
 
 
+            private String formatDailyTime(long timeMs) {
+                long minutes = timeMs / 60000;
+                long seconds = (timeMs % 60000) / 1000;
+                long hundredths = (timeMs % 1000) / 10;
+
+                return String.format(
+                        java.util.Locale.US,
+                        "%02d:%02d.%02d",
+                        minutes,
+                        seconds,
+                        hundredths
+                );
+            }
+
             @Override
             public void onGameCompleted() {
 
@@ -174,19 +189,123 @@ public class MainActivity extends AppCompatActivity {
                 if (practiceMode) {
                     return;
                 }
+                if (dailyChallengeMode) {
+                    completionTitle.setText("DAILY CHALLENGE COMPLETE!");
 
+                    final String displayedTime =
+                            completionTime.getText().toString();
+
+                    String dateKey = DailyChallengeManager.getTodayDateKey();
+
+                    PlayerManager.createOrLoadPlayer(
+                            new PlayerManager.PlayerCallback() {
+                                @Override
+                                public void onReady(
+                                        String playerId,
+                                        String displayName) {
+
+                                    DailyLeaderboardManager.saveDailyTime(
+                                            dateKey,
+                                            completionTimeMs,
+                                            displayName,
+                                            new DailyLeaderboardManager.DailyLeaderboardCallback() {
+
+
+                                                @Override
+                                                public void onSaved(
+                                                        boolean firstCompletion,
+                                                        long officialTimeMs
+                                                ) {
+                                                    runOnUiThread(() -> {
+                                                        completionTime.setText(
+                                                                "Official result saved!\n"
+                                                                        + "TIME: "
+                                                                        + formatDailyTime(officialTimeMs)
+                                                        );
+
+                                                        Intent intent = new Intent(
+                                                                MainActivity.this,
+                                                                DailyLeaderboardActivity.class
+                                                        );
+
+                                                        intent.putExtra(
+                                                                "date_key",
+                                                                dateKey
+                                                        );
+
+                                                        intent.putExtra(
+                                                                "official_time_ms",
+                                                                officialTimeMs
+                                                        );
+
+                                                        startActivity(intent);
+                                                    });
+                                                }
+
+
+                                                @Override
+                                                public void onError(Exception exception) {
+                                                    completionTime.setText(
+                                                            "Challenge completed!\n"
+                                                                    + "Could not save your result."
+                                                    );
+
+                                                    android.util.Log.e(
+                                                            "DailyBrain",
+                                                            "Failed to save daily result",
+                                                            exception
+                                                    );
+                                                }
+                                            }
+                                    );
+                                }
+
+                                @Override
+                                public void onError(Exception exception) {
+                                    completionTime.setText(
+                                            "Challenge completed!\n"
+                                                    + "Could not load your profile."
+                                    );
+
+                                    android.util.Log.e(
+                                            "DailyBrain",
+                                            "Failed to load player profile",
+                                            exception
+                                    );
+                                }
+                            }
+                    );
+
+                    return;
+                }
+
+// Keep your existing stage completion and leaderboard logic below unchanged.
                 // Unlock the next stage for an official completion
+
+                // Save official stage completion and unlock the next stage.
                 android.content.SharedPreferences preferences =
                         getSharedPreferences("game_progress", MODE_PRIVATE);
 
                 int unlockedStage =
                         preferences.getInt("unlocked_stage", 1);
 
+                java.util.Set<String> completedStages = new HashSet<>(
+                        preferences.getStringSet("completed_stages", new HashSet<>())
+                );
+
+                completedStages.add(String.valueOf(completedStage));
+
+                android.content.SharedPreferences.Editor editor =
+                        preferences.edit();
+
+                editor.putStringSet("completed_stages", completedStages);
+
                 if (completedStage >= unlockedStage) {
-                    preferences.edit()
-                            .putInt("unlocked_stage", completedStage + 1)
-                            .apply();
+                    editor.putInt("unlocked_stage", completedStage + 1);
                 }
+
+                editor.apply();
+
 
                 // Save the first official score and open the leaderboard
                 PlayerManager.createOrLoadPlayer(
@@ -286,14 +405,20 @@ public class MainActivity extends AppCompatActivity {
                         dialog.dismiss();
                     })
                     .setPositiveButton("Practice", (dialog, which) -> {
-                        android.content.Intent intent =
-                                new android.content.Intent(
-                                        MainActivity.this,
-                                        MainActivity.class
-                                );
+                        Intent intent = new Intent(
+                                MainActivity.this,
+                                MainActivity.class
+                        );
 
-                        intent.putExtra("stage_number", stageNumber);
-                        intent.putExtra("practice_mode", true);
+                        if (dailyChallengeMode) {
+
+                            intent.putExtra("daily_challenge", true);
+                            intent.putExtra("practice_mode", true);
+
+                        } else {
+                            intent.putExtra("stage_number", stageNumber);
+                            intent.putExtra("practice_mode", true);
+                        }
 
                         startActivity(intent);
                         finish();

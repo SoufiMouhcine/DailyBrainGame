@@ -332,46 +332,67 @@ public class PuzzleGenerator {
         directions.add(new int[]{0, 1});  // right
 
 
+
         if (difficulty == 1 && path.size() >= 2) {
 
-            // Easy: prefer continuing in the same direction.
+            // EASY: prefer continuing straight.
             int[] previous = path.get(path.size() - 2);
             int[] current = path.get(path.size() - 1);
 
             int directionRow = current[0] - previous[0];
             int directionCol = current[1] - previous[1];
 
-            // Put the straight-ahead direction first.
+            int[] straight = new int[]{
+                    directionRow,
+                    directionCol
+            };
+
             directions.removeIf(direction ->
                     direction[0] == directionRow
                             && direction[1] == directionCol
             );
 
-            directions.add(0, new int[]{
-                    directionRow, directionCol
-            });
+            Collections.shuffle(directions, random);
+            directions.add(0, straight);
 
-            // Randomize the remaining directions.
-            List<int[]> remaining =
-                    new ArrayList<>(directions.subList(1, directions.size()));
+        } else if (path.size() >= 2 && difficulty >= 3) {
 
-            Collections.shuffle(remaining, random);
+            // HARD, EXPERT, MASTER:
+            // Put turning directions before straight movement.
+            int[] previous = path.get(path.size() - 2);
+            int[] current = path.get(path.size() - 1);
+
+            int directionRow = current[0] - previous[0];
+            int directionCol = current[1] - previous[1];
+
+            List<int[]> turningDirections = new ArrayList<>();
+            List<int[]> straightDirections = new ArrayList<>();
+
+            for (int[] direction : directions) {
+
+                if (direction[0] == directionRow
+                        && direction[1] == directionCol) {
+                    straightDirections.add(direction);
+                } else {
+                    turningDirections.add(direction);
+                }
+            }
+
+            Collections.shuffle(turningDirections, random);
+            Collections.shuffle(straightDirections, random);
 
             directions.clear();
-            directions.add(new int[]{
-                    directionRow, directionCol
-            });
-            directions.addAll(remaining);
+
+            // Higher difficulty prioritizes turns.
+            directions.addAll(turningDirections);
+            directions.addAll(straightDirections);
 
         } else {
 
-            // Medium and Hard: explore directions randomly.
+            // NORMAL: randomize movement directions.
             Collections.shuffle(directions, random);
-
-            if (difficulty >= 3) {
-                Collections.shuffle(directions, random);
-            }
         }
+
 
 
         for (int[] direction : directions) {
@@ -452,15 +473,26 @@ public class PuzzleGenerator {
         List<int[]> bestPath = null;
         int bestScore = Integer.MAX_VALUE;
 
+
         int targetTurns;
 
-        if (difficulty == 1) {
-            targetTurns = 6 + (Math.abs(random.nextInt()) % 4);
+        if (difficulty <= 1) {
+            // Easy: fewer turns
+            targetTurns = 6 + random.nextInt(4);       // 6–9
         } else if (difficulty == 2) {
-            targetTurns = 11 + (Math.abs(random.nextInt()) % 5);
+            // Normal
+            targetTurns = 11 + random.nextInt(5);      // 11–15
+        } else if (difficulty == 3) {
+            // Hard
+            targetTurns = 15 + random.nextInt(5);      // 15–19
+        } else if (difficulty == 4) {
+            // Expert
+            targetTurns = 17 + random.nextInt(5);      // 17–21
         } else {
-            targetTurns = 17 + (Math.abs(random.nextInt()) % 5);
+            // Master
+            targetTurns = 19 + random.nextInt(5);      // 19–23
         }
+
 
         for (int attempt = 0; attempt < 5; attempt++) {
 

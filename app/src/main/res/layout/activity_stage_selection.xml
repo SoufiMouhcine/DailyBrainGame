@@ -18,6 +18,7 @@
         android:gravity="center" />
 
     <TextView
+        android:id="@+id/worldTitleText"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:text="WORLD 1"
@@ -27,6 +28,89 @@
         android:gravity="center"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="20dp" />
+
+    <TextView
+        android:id="@+id/stageProgressText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="0 / 50 STAGES COMPLETED"
+        android:textColor="#6EE7B7"
+        android:textSize="14sp"
+        android:textStyle="bold"
+        android:gravity="center"
+        android:layout_marginBottom="8dp" />
+
+    <ProgressBar
+        android:id="@+id/stageProgressBar"
+        style="?android:attr/progressBarStyleHorizontal"
+        android:layout_width="match_parent"
+        android:layout_height="8dp"
+        android:max="50"
+        android:progress="0"
+        android:progressTint="#6EE7B7"
+        android:progressBackgroundTint="#374151"
+        android:layout_marginBottom="16dp" />
+
+    <HorizontalScrollView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:scrollbars="none"
+        android:layout_marginBottom="12dp">
+
+        <LinearLayout
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal">
+
+            <Button
+                android:id="@+id/world1Button"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="WORLD 1"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                android:minWidth="0dp"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="#64DC82"
+                android:textColor="#101827" />
+
+            <Button
+                android:id="@+id/world2Button"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="WORLD 2"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                android:minWidth="0dp"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="#263548"
+                android:textColor="#FFFFFF" />
+
+            <Button
+                android:id="@+id/world3Button"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="WORLD 3"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                android:minWidth="0dp"
+                android:layout_marginEnd="8dp"
+                android:backgroundTint="#263548"
+                android:textColor="#FFFFFF" />
+
+            <Button
+                android:id="@+id/world4Button"
+                android:layout_width="wrap_content"
+                android:layout_height="48dp"
+                android:text="WORLD 4"
+                android:textAllCaps="false"
+                android:textSize="12sp"
+                android:minWidth="0dp"
+                android:backgroundTint="#263548"
+                android:textColor="#FFFFFF" />
+
+        </LinearLayout>
+    </HorizontalScrollView>
 
     <Button
         android:id="@+id/dailyChallengeButton"
@@ -38,15 +122,23 @@
         android:textStyle="bold"
         android:textColor="#101827"
         android:backgroundTint="#64DC82"
-        android:layout_marginBottom="20dp" />
+        android:layout_marginBottom="12dp" />
 
-    <GridLayout
-        android:id="@+id/stageGrid"
+    <ScrollView
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:columnCount="3"
-        android:rowCount="4"
-        android:alignmentMode="alignMargins"
-        android:useDefaultMargins="true" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fillViewport="true"
+        android:clipToPadding="false">
+
+        <GridLayout
+            android:id="@+id/stageGrid"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:columnCount="3"
+            android:alignmentMode="alignMargins"
+            android:useDefaultMargins="true" />
+
+    </ScrollView>
 
 </LinearLayout>

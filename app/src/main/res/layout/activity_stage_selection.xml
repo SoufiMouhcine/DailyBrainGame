@@ -140,5 +140,13 @@
             android:useDefaultMargins="true" />
 
     </ScrollView>
-
+    <!-- Banner ad area -->
+    <FrameLayout
+        android:id="@+id/stageSelectionAdContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center_horizontal"
+        android:gravity="center"
+        android:layout_marginTop="8dp"
+        android:minHeight="50dp" />
 </LinearLayout>

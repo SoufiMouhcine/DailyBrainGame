@@ -12,6 +12,8 @@ import java.util.HashSet;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import androidx.appcompat.app.AppCompatActivity;
+import com.google.android.libraries.ads.mobile.sdk.MobileAds;
+import com.google.android.libraries.ads.mobile.sdk.initialization.InitializationConfig;
 
 public class MainActivity extends AppCompatActivity {
     private boolean practiceMode = false;
@@ -61,6 +63,7 @@ public class MainActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        initializeAdMob();
         setContentView(R.layout.activity_main);
         practiceMode = getIntent().getBooleanExtra(
                 "practice_mode",
@@ -498,4 +501,22 @@ public class MainActivity extends AppCompatActivity {
 
         super.onDestroy();
     }
+
+    private void initializeAdMob() {
+        new Thread(() -> {
+            MobileAds.initialize(
+                    getApplicationContext(),
+                    new InitializationConfig.Builder(
+                            "ca-app-pub-3940256099942544~3347511713"
+                    ).build(),
+                    initializationStatus -> {
+                        android.util.Log.d(
+                                "DailyBrainAds",
+                                "AdMob initialization completed"
+                        );
+                    }
+            );
+        }).start();
+    }
+
 }

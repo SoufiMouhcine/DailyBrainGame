@@ -142,7 +142,8 @@ public class StageSelectionActivity extends AppCompatActivity {
 
                 if (completedStages.contains(String.valueOf(stage))) {
 
-                    button.setText("✓\nSTAGE " + stage + "\nCOMPLETED");
+                    button.setText("✓ STAGE " + stage + "\n"
+                            + getDifficultyLabel(stage) + " · COMPLETED");
                     button.setTextColor(Color.rgb(110, 231, 183));
 
                     button.setBackgroundResource(R.drawable.stage_completed);
@@ -150,7 +151,8 @@ public class StageSelectionActivity extends AppCompatActivity {
 
                 } else if (stage == unlockedStage) {
 
-                    button.setText("★\nSTAGE " + stage + "\nNEXT");
+                    button.setText("STAGE " + stage + "\n"
+                            + getDifficultyLabel(stage));
                     button.setTextColor(Color.rgb(16, 24, 39));
 
                     button.setBackgroundResource(R.drawable.stage_available);
@@ -158,8 +160,8 @@ public class StageSelectionActivity extends AppCompatActivity {
 
                 } else {
 
-                    button.setText("▶\nSTAGE " + stage + "\n"
-                            + getDifficultyLabel(stage));
+                    button.setText("★ STAGE " + stage + "\n"
+                            + getDifficultyLabel(stage) + " · NEXT");
                     button.setTextColor(Color.WHITE);
 
                     button.setBackgroundResource(R.drawable.stage_next);
@@ -173,7 +175,7 @@ public class StageSelectionActivity extends AppCompatActivity {
 
             } else {
                 button.setEnabled(false);
-                button.setText("🔒\nSTAGE " + stage + "\nLOCKED");
+                button.setText("🔒 STAGE " + stage + "\nLOCKED");
                 button.setTextColor(Color.LTGRAY);
 
                 button.setBackgroundResource(R.drawable.stage_locked);
@@ -185,7 +187,7 @@ public class StageSelectionActivity extends AppCompatActivity {
                     new GridLayout.LayoutParams();
 
             params.width = 0;
-            params.height = (int) (105 * getResources()
+            params.height = (int) (95 * getResources()
                     .getDisplayMetrics().density);
 
             params.columnSpec =

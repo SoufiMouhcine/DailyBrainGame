@@ -16,13 +16,20 @@ public class PuzzleManager {
         } else if (puzzleNumber <= 10) {
             numberOfCheckpoints = 7;
             difficulty = 3;
+        } else if (puzzleNumber <= 20) {
+            numberOfCheckpoints = 8;
+            difficulty = 4;
         } else {
-            numberOfCheckpoints = 7;
-            difficulty = 3;
+            numberOfCheckpoints = 9;
+            difficulty = 5;
         }
 
-        return PuzzleGenerator.generate(
-                puzzleNumber * 1000 + difficulty * 37,
+        int seed = puzzleNumber * 1000 + difficulty * 37;
+
+        PuzzleGenerator generator = new PuzzleGenerator();
+
+        return generator.generate(
+                seed,
                 numberOfCheckpoints,
                 difficulty
         );

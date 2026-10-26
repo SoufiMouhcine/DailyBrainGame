@@ -11,8 +11,8 @@ public class StageManager {
         int difficulty = getDifficulty(stageNumber);
         int numberOfCheckpoints =
                 getNumberOfCheckpoints(stageNumber);
-
-        return PuzzleGenerator.generate(
+        PuzzleGenerator generator = new PuzzleGenerator();
+        return generator.generate(
                 stageNumber,
                 numberOfCheckpoints,
                 difficulty

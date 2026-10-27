@@ -66,7 +66,7 @@ public class DailyChallengeActivity extends AppCompatActivity {
                                 officialTimeMs
                         );
                         intent.putExtra("date_key", dateKey);
-
+                        intent.putExtra("show_daily_interstitial", true);
                         startActivity(intent);
                         finish();
                     }

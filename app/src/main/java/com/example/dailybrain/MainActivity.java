@@ -14,10 +14,34 @@ import com.google.firebase.auth.FirebaseUser;
 import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.libraries.ads.mobile.sdk.MobileAds;
 import com.google.android.libraries.ads.mobile.sdk.initialization.InitializationConfig;
+import android.widget.Toast;
+
+import androidx.annotation.NonNull;
+import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd;
+import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback;
+import com.google.android.libraries.ads.mobile.sdk.common.AdRequest;
+import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
+import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
+import com.google.android.libraries.ads.mobile.sdk.rewarded.OnUserEarnedRewardListener;
+import com.google.android.libraries.ads.mobile.sdk.common.FullScreenContentError;
+import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAd;
+import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardItem;
+import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAdEventCallback;
 
 public class MainActivity extends AppCompatActivity {
     private boolean practiceMode = false;
     private boolean dailyChallengeMode = false;
+    private int hintsUsed = 0;
+    private boolean hintAdInProgress = false;
+    private int stageNumber = 1;
+    private RewardedAd rewardedAd;
+
+    private static final String REWARDED_AD_UNIT_ID =
+            "ca-app-pub-3940256099942544/5224354917";
+    private InterstitialAd interstitialAd;
+
+    private static final String INTERSTITIAL_AD_UNIT_ID =
+            "ca-app-pub-3940256099942544/1033173712";
     private GameView gameView;
     private android.view.View completionPanel;
     private TextView completionTitle;
@@ -83,7 +107,7 @@ public class MainActivity extends AppCompatActivity {
         completionTitle = findViewById(R.id.completionTitle);
         completionTime = findViewById(R.id.completionTime);
         gameView = findViewById(R.id.gameView);
-        int stageNumber =
+        stageNumber =
                 getIntent().getIntExtra("stage_number", 1);
 
         Puzzle puzzle;
@@ -231,14 +255,17 @@ public class MainActivity extends AppCompatActivity {
                                                                 DailyLeaderboardActivity.class
                                                         );
 
-                                                        intent.putExtra(
-                                                                "date_key",
-                                                                dateKey
-                                                        );
+                                                        intent.putExtra("date_key", dateKey);
 
                                                         intent.putExtra(
                                                                 "official_time_ms",
                                                                 officialTimeMs
+                                                        );
+
+                                                        // Show an interstitial only after the first completion today.
+                                                        intent.putExtra(
+                                                                "show_daily_interstitial",
+                                                                firstCompletion
                                                         );
 
                                                         startActivity(intent);
@@ -380,19 +407,74 @@ public class MainActivity extends AppCompatActivity {
         });
 
         hintButton.setOnClickListener(v -> {
+
+            if (hintAdInProgress) {
+                return;
+            }
+
+            // First hint is free.
+            if (hintsUsed == 0) {
+                gameView.showHint();
+                hintsUsed++;
+                return;
+            }
+
+            // Only the second hint requires a rewarded ad.
+            if (hintsUsed == 1) {
+                if (rewardedAd != null) {
+                    showRewardedHintAd();
+                } else {
+                    Toast.makeText(
+                            MainActivity.this,
+                            "The ad is not ready yet. Please try again shortly.",
+                            Toast.LENGTH_SHORT
+                    ).show();
+
+                    loadRewardedAd();
+                }
+                return;
+            }
+
+            // Third hint and every hint after it are free.
             gameView.showHint();
+            hintsUsed++;
         });
 
         nextStageButton.setOnClickListener(v -> {
-            android.content.Intent intent =
-                    new android.content.Intent(
-                            MainActivity.this,
-                            MainActivity.class
-                    );
+            android.util.Log.d(
+                    "DailyBrainAds",
+                    "NEXT STAGE CLICKED: stageNumber=" + stageNumber
+            );
+            android.util.Log.d(
+                    "DailyBrainAds",
+                    "CHECK: stage=" + stageNumber
+                            + ", multipleOf2=" + (stageNumber % 2 == 0)
+                            + ", adReady=" + (interstitialAd != null)
+            );
+            if (stageNumber % 2 == 0 && interstitialAd != null) {
 
-            intent.putExtra("stage_number", stageNumber + 1);
-            startActivity(intent);
-            finish();
+                InterstitialAd ad = interstitialAd;
+                interstitialAd = null;
+
+                ad.setAdEventCallback(new InterstitialAdEventCallback() {
+
+                    @Override
+                    public void onAdDismissedFullScreenContent() {
+                        runOnUiThread(() -> navigateToNextStage());
+                    }
+
+                    @Override
+                    public void onAdFailedToShowFullScreenContent(
+                            @NonNull FullScreenContentError error) {
+                        runOnUiThread(() -> navigateToNextStage());
+                    }
+                });
+
+                ad.show(MainActivity.this);
+
+            } else {
+                navigateToNextStage();
+            }
         });
 
 
@@ -452,7 +534,22 @@ public class MainActivity extends AppCompatActivity {
                     }
                 });
     }
+    private void navigateToNextStage() {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
 
+        android.content.Intent intent =
+                new android.content.Intent(
+                        MainActivity.this,
+                        MainActivity.class
+                );
+
+        intent.putExtra("stage_number", stageNumber + 1);
+
+        startActivity(intent);
+        finish();
+    }
     private void loadPlayerProfile() {
         PlayerManager.createOrLoadPlayer(new PlayerManager.PlayerCallback() {
             @Override
@@ -514,9 +611,146 @@ public class MainActivity extends AppCompatActivity {
                                 "DailyBrainAds",
                                 "AdMob initialization completed"
                         );
+
+                        loadRewardedAd();
+                        loadInterstitialAd();
                     }
             );
         }).start();
     }
+    private void loadRewardedAd() {
+        RewardedAd.load(
+                new AdRequest.Builder(REWARDED_AD_UNIT_ID).build(),
+                new AdLoadCallback<RewardedAd>() {
 
+                    @Override
+                    public void onAdLoaded(@NonNull RewardedAd ad) {
+                        runOnUiThread(() -> {
+                            rewardedAd = ad;
+
+                            android.util.Log.d(
+                                    "DailyBrainAds",
+                                    "Rewarded ad loaded successfully"
+                            );
+                        });
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(
+                            @NonNull LoadAdError adError) {
+
+                        runOnUiThread(() -> {
+                            rewardedAd = null;
+
+                            android.util.Log.e(
+                                    "DailyBrainAds",
+                                    "Rewarded ad failed to load: "
+                                            + adError.getMessage()
+                            );
+                        });
+                    }
+                }
+        );
+    }
+    private void loadInterstitialAd() {
+        InterstitialAd.load(
+                new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
+                new AdLoadCallback<InterstitialAd>() {
+
+                    @Override
+                    public void onAdLoaded(@NonNull InterstitialAd ad) {
+                        runOnUiThread(() -> {
+                            interstitialAd = ad;
+
+                            android.util.Log.d(
+                                    "DailyBrainAds",
+                                    "INTERSTITIAL LOADED AND READY"
+                            );
+                        });
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(
+                            @NonNull LoadAdError adError) {
+
+                        runOnUiThread(() -> {
+                            interstitialAd = null;
+
+                            android.util.Log.e(
+                                    "DailyBrainAds",
+                                    "INTERSTITIAL LOAD FAILED: " + adError.getMessage()
+                            );
+                        });
+                    }
+                }
+        );
+    }
+    private void showRewardedHintAd() {
+        RewardedAd ad = rewardedAd;
+
+        if (ad == null || hintAdInProgress) {
+            return;
+        }
+
+        hintAdInProgress = true;
+        rewardedAd = null;
+
+        ad.setAdEventCallback(new RewardedAdEventCallback() {
+
+            @Override
+            public void onAdDismissedFullScreenContent() {
+                runOnUiThread(() -> {
+                    hintAdInProgress = false;
+
+                    if (isFinishing() || isDestroyed()) {
+                        return;
+                    }
+
+                    // Reload for another attempt if the reward was not earned.
+                    loadRewardedAd();
+                });
+            }
+
+            @Override
+            public void onAdFailedToShowFullScreenContent(
+                    @NonNull FullScreenContentError error) {
+
+                runOnUiThread(() -> {
+                    hintAdInProgress = false;
+
+                    Toast.makeText(
+                            MainActivity.this,
+                            "Unable to show the ad. Please try again.",
+                            Toast.LENGTH_SHORT
+                    ).show();
+
+                    if (!isFinishing() && !isDestroyed()) {
+                        loadRewardedAd();
+                    }
+                });
+            }
+        });
+
+        ad.show(
+                MainActivity.this,
+                new OnUserEarnedRewardListener() {
+                    @Override
+                    public void onUserEarnedReward(
+                            @NonNull RewardItem rewardItem) {
+
+                        runOnUiThread(() -> {
+                            if (isFinishing() || isDestroyed()) {
+                                return;
+                            }
+
+                            // Grant the second hint only after the reward.
+                            if (hintsUsed == 1) {
+                                gameView.showHint();
+                                hintsUsed = 2;
+                            }
+                        });
+                    }
+                }
+        );
+    }
 }

@@ -14,7 +14,14 @@ import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
+import androidx.annotation.NonNull;
 
+import com.google.android.libraries.ads.mobile.sdk.common.AdRequest;
+import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
+import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
+import com.google.android.libraries.ads.mobile.sdk.common.FullScreenContentError;
+import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd;
+import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback;
 import java.util.Locale;
 
 public class DailyLeaderboardActivity extends AppCompatActivity {
@@ -26,7 +33,13 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
     private LinearLayout podiumContainer;
     private String dateKey;
     private long officialTimeMs;
-
+    private InterstitialAd dailyInterstitialAd;
+    private boolean leaderboardDisplayed = false;
+    private boolean shouldShowDailyInterstitial;
+    private boolean dailyInterstitialHandled = false;
+    private LinearLayout leaderboardRoot;
+    private static final String DAILY_INTERSTITIAL_AD_UNIT_ID =
+            "ca-app-pub-3940256099942544/1033173712";
     private final int backgroundColor =
             android.graphics.Color.rgb(16, 24, 39);
     private final int cardColor =
@@ -43,11 +56,17 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
 
         dateKey = getIntent().getStringExtra("date_key");
+
         officialTimeMs = getIntent().getLongExtra(
                 "official_time_ms", 0L
         );
 
-        LinearLayout root = new LinearLayout(this);
+        shouldShowDailyInterstitial = getIntent().getBooleanExtra(
+                "show_daily_interstitial", false
+        );
+
+        leaderboardRoot = new LinearLayout(this);
+        LinearLayout root = leaderboardRoot;
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(24, 24, 24, 24);
         root.setBackgroundColor(backgroundColor);
@@ -140,11 +159,103 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
 
         addSpace(root, 12);
 
-        setContentView(root);
-
-        loadLeaderboard();
+        if (shouldShowDailyInterstitial) {
+            showLoadingScreen();
+            loadDailyInterstitialAd();
+        } else {
+            setContentView(root);
+            loadLeaderboard();
+        }
     }
+    private void loadDailyInterstitialAd() {
+        InterstitialAd.load(
+                new AdRequest.Builder(
+                        DAILY_INTERSTITIAL_AD_UNIT_ID
+                ).build(),
+                new AdLoadCallback<InterstitialAd>() {
 
+                    @Override
+                    public void onAdLoaded(
+                            @NonNull InterstitialAd ad
+                    ) {
+                        runOnUiThread(() -> {
+                            dailyInterstitialAd = ad;
+
+                            android.util.Log.d(
+                                    "DailyBrainAds",
+                                    "DAILY INTERSTITIAL LOADED"
+                            );
+
+                            maybeShowDailyInterstitial();
+                        });
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(
+                            @NonNull LoadAdError error
+                    ) {
+                        runOnUiThread(() -> {
+                            dailyInterstitialAd = null;
+
+                            android.util.Log.e(
+                                    "DailyBrainAds",
+                                    "DAILY INTERSTITIAL FAILED: " + error.getMessage()
+                            );
+
+                            showLeaderboard();
+                        });
+                    }
+                }
+        );
+    }
+    private void maybeShowDailyInterstitial() {
+        if (!shouldShowDailyInterstitial
+                || dailyInterstitialHandled
+                || dailyInterstitialAd == null
+                || isFinishing()
+                || isDestroyed()) {
+            return;
+        }
+
+        dailyInterstitialHandled = true;
+
+        InterstitialAd ad = dailyInterstitialAd;
+        dailyInterstitialAd = null;
+
+        ad.setAdEventCallback(
+                new InterstitialAdEventCallback() {
+
+                    @Override
+                    public void onAdDismissedFullScreenContent() {
+                        runOnUiThread(() -> {
+                            android.util.Log.d(
+                                    "DailyBrainAds",
+                                    "DAILY INTERSTITIAL DISMISSED"
+                            );
+
+                            showLeaderboard();
+                        });
+                    }
+
+                    @Override
+                    public void onAdFailedToShowFullScreenContent(
+                            @NonNull FullScreenContentError error
+                    ) {
+                        runOnUiThread(() -> {
+                            android.util.Log.e(
+                                    "DailyBrainAds",
+                                    "DAILY INTERSTITIAL FAILED TO SHOW: "
+                                            + error.getMessage()
+                            );
+
+                            showLeaderboard();
+                        });
+                    }
+                }
+        );
+
+        ad.show(DailyLeaderboardActivity.this);
+    }
     private void loadLeaderboard() {
         FirebaseUser user =
                 FirebaseAuth.getInstance().getCurrentUser();
@@ -450,5 +561,31 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
         timeView.setPadding(0, 8, 0, 0);
         card.addView(timeView);
     }
+    private void showLoadingScreen() {
+        LinearLayout loadingLayout = new LinearLayout(this);
+        loadingLayout.setOrientation(LinearLayout.VERTICAL);
+        loadingLayout.setGravity(Gravity.CENTER);
+        loadingLayout.setPadding(32, 32, 32, 32);
+        loadingLayout.setBackgroundColor(backgroundColor);
 
+        TextView message = makeText(
+                "Preparing your daily results...",
+                18,
+                white
+        );
+
+        message.setGravity(Gravity.CENTER);
+        loadingLayout.addView(message);
+
+        setContentView(loadingLayout);
+    }
+    private void showLeaderboard() {
+        if (leaderboardDisplayed || isFinishing() || isDestroyed()) {
+            return;
+        }
+
+        leaderboardDisplayed = true;
+        setContentView(leaderboardRoot);
+        loadLeaderboard();
+    }
 }

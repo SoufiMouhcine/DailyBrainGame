@@ -14,12 +14,84 @@ import android.widget.TextView;
 import java.util.HashSet;
 import java.util.Set;
 import androidx.appcompat.app.AppCompatActivity;
+import android.util.Log;
+import android.widget.FrameLayout;
+
+import com.google.android.libraries.ads.mobile.sdk.banner.AdView;
+import com.google.android.libraries.ads.mobile.sdk.banner.AdSize;
+import com.google.android.libraries.ads.mobile.sdk.banner.BannerAd;
+import com.google.android.libraries.ads.mobile.sdk.banner.BannerAdRequest;
+import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
+import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
+import com.google.android.libraries.ads.mobile.sdk.MobileAds;
+import com.google.android.libraries.ads.mobile.sdk.initialization.InitializationConfig;
 
 public class StageSelectionActivity extends AppCompatActivity {
 
     private GridLayout stageGrid;
     private int selectedWorld = 1;
 
+    private AdView bannerAdView;
+
+    private void loadStageSelectionBanner() {
+        FrameLayout adContainer =
+                findViewById(R.id.stageSelectionAdContainer);
+
+        bannerAdView = new AdView(this);
+        adContainer.removeAllViews();
+        adContainer.addView(bannerAdView);
+
+        int widthDp = (int) (
+                getResources().getDisplayMetrics().widthPixels
+                        / getResources().getDisplayMetrics().density
+        );
+
+        AdSize adSize =
+                AdSize.getLargeAnchoredAdaptiveBannerAdSize(
+                        this,
+                        widthDp
+                );
+
+        BannerAdRequest request = new BannerAdRequest.Builder(
+                "ca-app-pub-3940256099942544/9214589741",
+                adSize
+        ).build();
+
+        bannerAdView.loadAd(
+                request,
+                new AdLoadCallback<BannerAd>() {
+                    @Override
+                    public void onAdLoaded(BannerAd ad) {
+                        Log.d("DailyBrainAds",
+                                "Stage selection test banner loaded");
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(LoadAdError error) {
+                        Log.e("DailyBrainAds",
+                                "Banner failed to load: " + error);
+                    }
+                }
+        );
+    }
+    private void initializeAdMobAndLoadBanner() {
+        new Thread(() -> {
+            MobileAds.initialize(
+                    getApplicationContext(),
+                    new InitializationConfig.Builder(
+                            "ca-app-pub-3940256099942544~3347511713"
+                    ).build(),
+                    initializationStatus -> {
+                        Log.d(
+                                "DailyBrainAds",
+                                "AdMob initialization completed"
+                        );
+
+                        runOnUiThread(this::loadStageSelectionBanner);
+                    }
+            );
+        }).start();
+    }
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -52,6 +124,7 @@ public class StageSelectionActivity extends AppCompatActivity {
 
         createStageButtons();
         updateWorldButtons();
+        initializeAdMobAndLoadBanner();
     }
     private void updateWorldTitle() {
         TextView worldTitleText = findViewById(R.id.worldTitleText);

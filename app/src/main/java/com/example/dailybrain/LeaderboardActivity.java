@@ -19,6 +19,14 @@ import android.view.View;
 import android.widget.Button;
 import java.util.Locale;
 import android.graphics.drawable.GradientDrawable;
+import androidx.annotation.NonNull;
+
+import com.google.android.libraries.ads.mobile.sdk.common.AdRequest;
+import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
+import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
+import com.google.android.libraries.ads.mobile.sdk.common.FullScreenContentError;
+import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd;
+import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback;
 
 public class LeaderboardActivity extends AppCompatActivity {
     private final Set<String> topPlayerIds = new HashSet<>();
@@ -28,7 +36,10 @@ public class LeaderboardActivity extends AppCompatActivity {
     private LinearLayout personalScoreContainer;
     private String currentPlayerId;
     private int stageNumber;
+    private InterstitialAd interstitialAd;
 
+    private static final String INTERSTITIAL_AD_UNIT_ID =
+            "ca-app-pub-3940256099942544/1033173712";
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -150,6 +161,7 @@ public class LeaderboardActivity extends AppCompatActivity {
         );
         continueButton.setElevation(dp(2));
 
+
         continueButton.setOnClickListener(v -> {
 
             int nextStage = stageNumber + 1;
@@ -160,22 +172,48 @@ public class LeaderboardActivity extends AppCompatActivity {
             int unlockedStage =
                     preferences.getInt("unlocked_stage", 1);
 
-            // Do not allow the player to enter a locked stage.
+            // Keep the existing locked-stage protection.
             if (nextStage > unlockedStage) {
                 nextStage = unlockedStage;
             }
 
-            android.content.Intent intent =
-                    new android.content.Intent(
-                            LeaderboardActivity.this,
-                            MainActivity.class
-                    );
+            final int targetStage = nextStage;
 
-            intent.putExtra("stage_number", nextStage);
+            // Show an interstitial after every 5 completed stages.
+            if (stageNumber % 5 == 0 && interstitialAd != null) {
 
-            startActivity(intent);
-            finish();
+                InterstitialAd ad = interstitialAd;
+                interstitialAd = null;
+
+                ad.setAdEventCallback(
+                        new InterstitialAdEventCallback() {
+
+                            @Override
+                            public void onAdDismissedFullScreenContent() {
+                                runOnUiThread(() ->
+                                        openStage(targetStage)
+                                );
+                            }
+
+                            @Override
+                            public void onAdFailedToShowFullScreenContent(
+                                    @NonNull FullScreenContentError error) {
+
+                                runOnUiThread(() ->
+                                        openStage(targetStage)
+                                );
+                            }
+                        }
+                );
+
+                ad.show(LeaderboardActivity.this);
+
+            } else {
+                // If no ad is ready, continue without delaying the player.
+                openStage(targetStage);
+            }
         });
+
 
         footer.addView(
                 continueButton,
@@ -213,10 +251,58 @@ public class LeaderboardActivity extends AppCompatActivity {
         );
 
         setContentView(root);
-
+        loadInterstitialAd();
         loadLeaderboard();
         loadPlayerRank();
         loadPersonalScore();
+    }
+
+    private void openStage(int stage) {
+        if (isFinishing() || isDestroyed()) {
+            return;
+        }
+
+        Intent intent = new Intent(
+                LeaderboardActivity.this,
+                MainActivity.class
+        );
+
+        intent.putExtra("stage_number", stage);
+
+        startActivity(intent);
+        finish();
+    }
+
+    private void loadInterstitialAd() {
+        InterstitialAd.load(
+                new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
+                new AdLoadCallback<InterstitialAd>() {
+                    @Override
+                    public void onAdLoaded(@NonNull InterstitialAd ad) {
+                        runOnUiThread(() -> {
+                            interstitialAd = ad;
+
+                            android.util.Log.d(
+                                    "DailyBrainAds",
+                                    "LEADERBOARD INTERSTITIAL LOADED"
+                            );
+                        });
+                    }
+
+                    @Override
+                    public void onAdFailedToLoad(@NonNull LoadAdError adError) {
+                        runOnUiThread(() -> {
+                            interstitialAd = null;
+
+                            android.util.Log.e(
+                                    "DailyBrainAds",
+                                    "LEADERBOARD INTERSTITIAL FAILED: "
+                                            + adError.getMessage()
+                            );
+                        });
+                    }
+                }
+        );
     }
 
     private void loadPersonalScore() {

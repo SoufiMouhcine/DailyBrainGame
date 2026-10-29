@@ -1,4 +1,4 @@
-package com.example.dailybrain;
+package com.mssf.dailybrain;
 
 import java.util.ArrayList;
 import java.util.Collections;

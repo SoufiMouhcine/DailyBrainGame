@@ -1,4 +1,4 @@
-package com.example.dailybrain;
+package com.mssf.dailybrain;
 
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;

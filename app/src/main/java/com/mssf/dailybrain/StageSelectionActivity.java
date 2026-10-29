@@ -1,5 +1,5 @@
 
-package com.example.dailybrain;
+package com.mssf.dailybrain;
 
 import android.content.Intent;
 import android.os.Bundle;
@@ -8,7 +8,6 @@ import android.widget.Button;
 import android.widget.GridLayout;
 import android.widget.LinearLayout;
 import android.graphics.Color;
-import android.graphics.Typeface;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import java.util.HashSet;
@@ -16,7 +15,13 @@ import java.util.Set;
 import androidx.appcompat.app.AppCompatActivity;
 import android.util.Log;
 import android.widget.FrameLayout;
+import android.Manifest;
+import android.content.pm.PackageManager;
+import android.os.Build;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.ContextCompat;
 import com.google.android.libraries.ads.mobile.sdk.banner.AdView;
 import com.google.android.libraries.ads.mobile.sdk.banner.AdSize;
 import com.google.android.libraries.ads.mobile.sdk.banner.BannerAd;
@@ -32,7 +37,7 @@ public class StageSelectionActivity extends AppCompatActivity {
     private int selectedWorld = 1;
 
     private AdView bannerAdView;
-
+    private ActivityResultLauncher<String> notificationPermissionLauncher;
     private void loadStageSelectionBanner() {
         FrameLayout adContainer =
                 findViewById(R.id.stageSelectionAdContainer);
@@ -95,7 +100,8 @@ public class StageSelectionActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        setupNotificationPermissionLauncher();
+        requestNotificationPermissionIfNeeded();
         setContentView(R.layout.activity_stage_selection);
 
         stageGrid = findViewById(R.id.stageGrid);
@@ -361,6 +367,37 @@ public class StageSelectionActivity extends AppCompatActivity {
         );
 
         progressBar.setProgress(completedCount);
+    }
+    private void setupNotificationPermissionLauncher() {
+
+        notificationPermissionLauncher =
+                registerForActivityResult(
+                        new ActivityResultContracts.RequestPermission(),
+                        isGranted -> {
+                            if (isGranted) {
+                                DailyReminderNotification.createNotificationChannel(this);
+                                DailyReminderScheduler.scheduleDailyReminder(this);
+                            }
+                        }
+                );
+    }
+    private void requestNotificationPermissionIfNeeded() {
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU
+                && ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+        ) != PackageManager.PERMISSION_GRANTED) {
+
+            notificationPermissionLauncher.launch(
+                    Manifest.permission.POST_NOTIFICATIONS
+            );
+
+        } else {
+            DailyReminderNotification.createNotificationChannel(this);
+            DailyReminderScheduler.scheduleDailyReminder(this);
+        }
+
     }
 
 }

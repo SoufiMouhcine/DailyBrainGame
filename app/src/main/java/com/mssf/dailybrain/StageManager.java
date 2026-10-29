@@ -1,5 +1,5 @@
 
-package com.example.dailybrain;
+package com.mssf.dailybrain;
 
 public class StageManager {
 

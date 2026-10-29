@@ -1,5 +1,5 @@
 
-package com.example.dailybrain;
+package com.mssf.dailybrain;
 
 import android.os.Bundle;
 import android.graphics.Color;
@@ -15,7 +15,6 @@ import java.util.Set;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.firestore.FirebaseFirestore;
 import android.content.Intent;
-import android.view.View;
 import android.widget.Button;
 import java.util.Locale;
 import android.graphics.drawable.GradientDrawable;

@@ -1,4 +1,4 @@
-package com.example.dailybrain;
+package com.mssf.dailybrain;
 
 import android.content.Context;
 

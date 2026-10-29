@@ -5,15 +5,15 @@ plugins {
 }
 
 android {
-    namespace = "com.example.dailybrain"
+    namespace = "com.mssf.dailybrain"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.example.dailybrain"
+        applicationId = "com.mssf.dailybrain"
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -48,7 +48,7 @@ dependencies {
 
     // push notification
     implementation("androidx.work:work-runtime:2.10.1")
-
+    implementation("androidx.concurrent:concurrent-futures:1.2.0")
     testImplementation(libs.junit)
     androidTestImplementation(libs.ext.junit)
     androidTestImplementation(libs.espresso.core)

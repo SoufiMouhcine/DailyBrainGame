@@ -1,5 +1,5 @@
 
-package com.example.dailybrain;
+package com.mssf.dailybrain;
 
 import android.os.Bundle;
 import android.view.Gravity;

@@ -15,7 +15,8 @@ import com.google.firebase.firestore.DocumentSnapshot;
 import com.google.firebase.firestore.FirebaseFirestore;
 import com.google.firebase.firestore.Query;
 import androidx.annotation.NonNull;
-
+import android.content.Intent;
+import androidx.activity.OnBackPressedCallback;
 import com.google.android.libraries.ads.mobile.sdk.common.AdRequest;
 import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
 import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
@@ -54,7 +55,15 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        getOnBackPressedDispatcher().addCallback(
+                this,
+                new OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        returnToStageSelection();
+                    }
+                }
+        );
         dateKey = getIntent().getStringExtra("date_key");
 
         officialTimeMs = getIntent().getLongExtra(
@@ -141,7 +150,7 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
         backButton.setTypeface(null, android.graphics.Typeface.BOLD);
         backButton.setPadding(16, 16, 16, 16);
         backButton.setBackgroundColor(cardColor);
-        backButton.setOnClickListener(v -> finish());
+        backButton.setOnClickListener(v -> returnToStageSelection());
 
         LinearLayout.LayoutParams backParams =
                 new LinearLayout.LayoutParams(
@@ -155,7 +164,7 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
         backButton.setGravity(Gravity.CENTER);
         backButton.setPadding(16, 16, 16, 16);
         backButton.setBackgroundColor(cardColor);
-        backButton.setOnClickListener(v -> finish());
+        backButton.setOnClickListener(v -> returnToStageSelection());
 
         addSpace(root, 12);
 
@@ -587,5 +596,19 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
         leaderboardDisplayed = true;
         setContentView(leaderboardRoot);
         loadLeaderboard();
+    }
+    private void returnToStageSelection() {
+        Intent intent = new Intent(
+                DailyLeaderboardActivity.this,
+                StageSelectionActivity.class
+        );
+
+        intent.addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+        );
+
+        startActivity(intent);
+        finish();
     }
 }

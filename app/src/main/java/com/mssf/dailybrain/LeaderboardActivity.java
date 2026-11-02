@@ -19,7 +19,7 @@ import android.widget.Button;
 import java.util.Locale;
 import android.graphics.drawable.GradientDrawable;
 import androidx.annotation.NonNull;
-
+import androidx.activity.OnBackPressedCallback;
 import com.google.android.libraries.ads.mobile.sdk.common.AdRequest;
 import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
 import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
@@ -42,7 +42,15 @@ public class LeaderboardActivity extends AppCompatActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-
+        getOnBackPressedDispatcher().addCallback(
+                this,
+                new OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        returnToStageSelection();
+                    }
+                }
+        );
         stageNumber = getIntent().getIntExtra("stage_number", 1);
 
         if (FirebaseAuth.getInstance().getCurrentUser() != null) {
@@ -233,16 +241,7 @@ public class LeaderboardActivity extends AppCompatActivity {
         allStagesParams.topMargin = dp(8);
         footer.addView(allStagesButton, allStagesParams);
 
-        allStagesButton.setOnClickListener(v -> {
-            android.content.Intent intent =
-                    new android.content.Intent(
-                            LeaderboardActivity.this,
-                            StageSelectionActivity.class
-                    );
-
-            startActivity(intent);
-            finish();
-        });
+        allStagesButton.setOnClickListener(v -> returnToStageSelection());
 
         root.addView(
                 footer,
@@ -709,5 +708,19 @@ public class LeaderboardActivity extends AppCompatActivity {
                 seconds,
                 centiseconds
         );
+    }
+    private void returnToStageSelection() {
+        Intent intent = new Intent(
+                LeaderboardActivity.this,
+                StageSelectionActivity.class
+        );
+
+        intent.addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+        );
+
+        startActivity(intent);
+        finish();
     }
 }

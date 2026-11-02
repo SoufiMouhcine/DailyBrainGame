@@ -2,6 +2,7 @@
 package com.mssf.dailybrain;
 
 import android.content.Intent;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
@@ -15,7 +16,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.libraries.ads.mobile.sdk.MobileAds;
 import com.google.android.libraries.ads.mobile.sdk.initialization.InitializationConfig;
 import android.widget.Toast;
-
+import androidx.activity.OnBackPressedCallback;
 import androidx.annotation.NonNull;
 import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd;
 import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback;
@@ -89,6 +90,25 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         initializeAdMob();
         setContentView(R.layout.activity_main);
+        getOnBackPressedDispatcher().addCallback(
+                this,
+                new OnBackPressedCallback(true) {
+                    @Override
+                    public void handleOnBackPressed() {
+                        returnToStageSelection();
+                    }
+                }
+        );
+        // Keep Android system bars visible.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            getWindow().getInsetsController().show(
+                    android.view.WindowInsets.Type.systemBars()
+            );
+        } else {
+            getWindow().getDecorView().setSystemUiVisibility(
+                    View.SYSTEM_UI_FLAG_VISIBLE
+            );
+        }
         practiceMode = getIntent().getBooleanExtra(
                 "practice_mode",
                 false
@@ -119,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
         }
 
         gameView.setPuzzle(puzzle);
-
+        final int totalCells = puzzle.getSize() * puzzle.getSize();
         TextView puzzleNumberText =
                 findViewById(R.id.puzzleNumberText);
 
@@ -145,7 +165,7 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onProgressChanged(int count) {
 
-                cellCounter.setText("Cells: " + count + " / 25");
+                cellCounter.setText("Cells: " + count + " / " + totalCells);
 
                 if (count > 0 && !timerRunning) {
                     startTimer();
@@ -752,5 +772,19 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         );
+    }
+    private void returnToStageSelection() {
+        Intent intent = new Intent(
+                MainActivity.this,
+                StageSelectionActivity.class
+        );
+
+        intent.addFlags(
+                Intent.FLAG_ACTIVITY_CLEAR_TOP |
+                        Intent.FLAG_ACTIVITY_SINGLE_TOP
+        );
+
+        startActivity(intent);
+        finish();
     }
 }

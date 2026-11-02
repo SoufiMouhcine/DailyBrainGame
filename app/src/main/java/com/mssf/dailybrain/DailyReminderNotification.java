@@ -29,8 +29,15 @@ public final class DailyReminderNotification {
             NotificationChannel channel = new NotificationChannel(
                     CHANNEL_ID,
                     "Daily Challenge Reminders",
-                    NotificationManager.IMPORTANCE_DEFAULT
+                    NotificationManager.IMPORTANCE_LOW
             );
+
+            channel.setDescription(
+                    "Silent reminders for the Daily Challenge."
+            );
+
+            channel.setSound(null, null);
+            channel.enableVibration(false);
 
             channel.setDescription(
                     "Reminders to play the Daily Brain challenge."
@@ -92,7 +99,7 @@ public final class DailyReminderNotification {
                         )
                         .setContentIntent(pendingIntent)
                         .setAutoCancel(true)
-                        .setPriority(NotificationCompat.PRIORITY_DEFAULT)
+                        .setPriority(NotificationCompat.PRIORITY_LOW)
                         .build();
 
         NotificationManagerCompat.from(context)

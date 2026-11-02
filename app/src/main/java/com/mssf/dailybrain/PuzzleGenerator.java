@@ -7,8 +7,8 @@ import java.util.Random;
 
 public class PuzzleGenerator {
 
-    private static final int SIZE = 5;
-    private static final int TOTAL_CELLS = 25;
+    private static int SIZE = 5;
+    private static int TOTAL_CELLS = 25;
     private static int difficulty;
     private static final int MAX_PATH_ATTEMPTS = 5000;
     private static int searchAttempts;
@@ -16,7 +16,27 @@ public class PuzzleGenerator {
 
 
 
-    public Puzzle generate(int seed, int numberOfCheckpoints, int difficulty) {
+    public synchronized Puzzle generate(
+            int seed,
+            int numberOfCheckpoints,
+            int difficulty) {
+
+        return generate(seed, numberOfCheckpoints, difficulty, 5);
+    }
+
+    public synchronized Puzzle generate(
+            int seed,
+            int numberOfCheckpoints,
+            int difficulty,
+            int gridSize) {
+
+        if (gridSize != 5 && gridSize != 6) {
+            throw new IllegalArgumentException("Grid size must be 5 or 6");
+        }
+
+        SIZE = gridSize;
+        TOTAL_CELLS = SIZE * SIZE;
+
         Random random = new Random(seed);
         PuzzleGenerator.difficulty = difficulty;
 
@@ -73,6 +93,7 @@ public class PuzzleGenerator {
             }
 
             Puzzle candidate = new Puzzle(
+                    SIZE,
                     candidateCheckpoints,
                     horizontalWalls,
                     verticalWalls,
@@ -129,17 +150,19 @@ public class PuzzleGenerator {
 
     public static Puzzle generateDailyPuzzle(String dateKey) {
 
-        // The same date produces the same puzzle.
         int seed = dateKey.hashCode();
 
-        // Daily Challenge uses a harder configuration.
-        int numberOfCheckpoints = 8;
+        // Daily Challenge: 6x6 with 11 checkpoints.
+        int numberOfCheckpoints = 9;
         int difficulty = 5;
+
         PuzzleGenerator generator = new PuzzleGenerator();
+
         return generator.generate(
                 seed,
                 numberOfCheckpoints,
-                difficulty
+                difficulty,
+                6
         );
     }
 
@@ -192,7 +215,7 @@ public class PuzzleGenerator {
         } else if (difficulty == 4) {
             numberOfWalls = 3;
         } else {
-            numberOfWalls = 4;
+            numberOfWalls = (SIZE == 6) ? 4 : 4;
         }
 
         // Prefer walls near turns in the intended path.
@@ -264,7 +287,7 @@ public class PuzzleGenerator {
         } else if (difficulty == 4) {
             numberOfWalls = 2;
         } else {
-            numberOfWalls = 3;
+            numberOfWalls = (SIZE == 6) ? 3 : 3;
         }
 
         Collections.shuffle(availableWalls, random);
@@ -838,78 +861,139 @@ public class PuzzleGenerator {
         if (numberOfCheckpoints < 2 ||
                 numberOfCheckpoints > path.size()) {
             throw new IllegalArgumentException(
-                    "Checkpoint count must be between 2 and "
-                            + path.size()
+                    "Invalid checkpoint count"
             );
         }
 
         int[][] checkpoints =
                 new int[numberOfCheckpoints][2];
 
-        // First checkpoint: beginning of the solution.
-        checkpoints[0][0] = path.get(0)[0];
-        checkpoints[0][1] = path.get(0)[1];
-
-        // Last checkpoint: end of the solution.
         int lastCheckpoint = numberOfCheckpoints - 1;
         int lastPathIndex = path.size() - 1;
 
-        checkpoints[lastCheckpoint][0] =
-                path.get(lastPathIndex)[0];
-        checkpoints[lastCheckpoint][1] =
-                path.get(lastPathIndex)[1];
+        // First checkpoint: start.
+        checkpoints[0] = path.get(0).clone();
+
+        // Last checkpoint: endpoint.
+        checkpoints[lastCheckpoint] =
+                path.get(lastPathIndex).clone();
 
         int previousIndex = 0;
 
-        int segmentSize =
-                Math.max(1, lastPathIndex / lastCheckpoint);
+        int minGap = Math.max(
+                2, path.size() / (numberOfCheckpoints * 3)
+        );
 
-        int variation;
-
-        if (difficulty == 1) {
-            variation = Math.max(1, segmentSize / 4);
-        } else if (difficulty == 2) {
-            variation = Math.max(1, segmentSize / 3);
-        } else {
-            variation = Math.max(1, segmentSize / 2);
-        }
-
-        // Place intermediate checkpoints at varied positions.
+        // Place intermediate checkpoints.
         for (int i = 1; i < lastCheckpoint; i++) {
 
-            int idealIndex =
-                    i * lastPathIndex / lastCheckpoint;
+            int remaining = lastCheckpoint - i;
 
-            int minIndex = Math.max(
-                    previousIndex + 1,
-                    idealIndex - variation
-            );
+            int minIndex = previousIndex + minGap;
 
-            // Reserve enough cells for remaining checkpoints.
-            int maxIndex = Math.min(
-                    idealIndex + variation,
-                    lastPathIndex
-                            - (lastCheckpoint - i)
-            );
+            int maxIndex =
+                    lastPathIndex - remaining * minGap;
 
-            int index = minIndex;
+            List<int[]> candidates = new ArrayList<>();
 
-            if (maxIndex > minIndex) {
-                index = minIndex
-                        + random.nextInt(
-                        maxIndex - minIndex + 1
+            int bestScore = Integer.MIN_VALUE;
+
+            for (int index = minIndex;
+                 index <= maxIndex;
+                 index++) {
+
+                int[] cell = path.get(index);
+
+                int minDistance = Integer.MAX_VALUE;
+
+                // Measure distance from existing checkpoints.
+                for (int j = 0; j < i; j++) {
+
+                    int distance =
+                            Math.abs(cell[0] - checkpoints[j][0])
+                                    + Math.abs(cell[1] - checkpoints[j][1]);
+
+                    minDistance = Math.min(
+                            minDistance, distance
+                    );
+                }
+
+                int previousDistance =
+                        Math.abs(cell[0] - checkpoints[i - 1][0])
+                                + Math.abs(cell[1] - checkpoints[i - 1][1]);
+
+                // Reward positions in unexplored board regions.
+                int region = getCheckpointRegion(cell);
+
+                boolean newRegion = true;
+
+                for (int j = 0; j < i; j++) {
+                    if (getCheckpointRegion(checkpoints[j]) == region) {
+                        newRegion = false;
+                        break;
+                    }
+                }
+
+                int score =
+                        minDistance * 4
+                                + previousDistance * 2
+                                + (newRegion ? 5 : 0)
+                                + random.nextInt(6);
+
+                // Avoid three consecutive checkpoints on one line.
+                if (i >= 2 && isCheckpointCollinear(
+                        checkpoints[i - 2],
+                        checkpoints[i - 1],
+                        cell)) {
+
+                    score -= 12;
+                }
+
+                if (score > bestScore) {
+                    bestScore = score;
+                    candidates.clear();
+                    candidates.add(new int[]{index});
+                } else if (score == bestScore) {
+                    candidates.add(new int[]{index});
+                }
+            }
+
+            if (candidates.isEmpty()) {
+                throw new IllegalStateException(
+                        "Could not place checkpoint"
                 );
             }
 
-            checkpoints[i][0] = path.get(index)[0];
-            checkpoints[i][1] = path.get(index)[1];
+            // Randomize among equally good candidates.
+            int selectedIndex = candidates.get(
+                    random.nextInt(candidates.size())
+            )[0];
 
-            previousIndex = index;
+            checkpoints[i] = path.get(selectedIndex).clone();
+
+            previousIndex = selectedIndex;
         }
 
         return checkpoints;
     }
+    private static int getCheckpointRegion(int[] cell) {
 
+        int rowRegion = cell[0] >= SIZE / 2 ? 1 : 0;
+        int colRegion = cell[1] >= SIZE / 2 ? 1 : 0;
+
+        return rowRegion * 2 + colRegion;
+    }
+    private static boolean isCheckpointCollinear(
+            int[] a,
+            int[] b,
+            int[] c) {
+
+        int crossProduct =
+                (b[0] - a[0]) * (c[1] - b[1])
+                        - (b[1] - a[1]) * (c[0] - b[0]);
+
+        return crossProduct == 0;
+    }
     private static boolean isValidSolution(
             int[][] solutionPath,
             boolean[][] horizontalWalls,

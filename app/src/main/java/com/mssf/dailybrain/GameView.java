@@ -14,7 +14,7 @@ import java.util.ArrayList;
 
 public class GameView extends View {
 
-    private final int GRID_SIZE = 5;
+    private int gridSize = 5;
     private boolean gameCompleted = false;
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
@@ -46,17 +46,15 @@ public class GameView extends View {
 
     public void setPuzzle(Puzzle puzzle) {
 
+        gridSize = puzzle.getSize();
+
         checkpoints = puzzle.getCheckpoints();
-
-        horizontalWalls =
-                puzzle.getHorizontalWalls();
-
-        verticalWalls =
-                puzzle.getVerticalWalls();
-        solutionPath =
-                puzzle.getSolutionPath();
+        horizontalWalls = puzzle.getHorizontalWalls();
+        verticalWalls = puzzle.getVerticalWalls();
+        solutionPath = puzzle.getSolutionPath();
 
         path.clear();
+        hintCell = null;
         gameCompleted = false;
 
         invalidate();
@@ -98,7 +96,7 @@ public class GameView extends View {
 
     private boolean isGameCompleted() {
 
-        if (path.size() != GRID_SIZE * GRID_SIZE) {
+        if (path.size() != gridSize * gridSize) {
             return false;
         }
 
@@ -123,10 +121,10 @@ public class GameView extends View {
         }
 
         // Keep the board square and centered
-        cellSize = Math.min(width, height) / (GRID_SIZE + 0.15f);
+        cellSize = Math.min(width, height) / (gridSize + 0.15f);
 
-        gridStartX = (width - cellSize * GRID_SIZE) / 2f;
-        gridStartY = (height - cellSize * GRID_SIZE) / 2f;
+        gridStartX = (width - cellSize * gridSize) / 2f;
+        gridStartY = (height - cellSize * gridSize) / 2f;
 
         canvas.drawColor(BACKGROUND_COLOR);
 
@@ -134,8 +132,8 @@ public class GameView extends View {
         paint.setStyle(Paint.Style.FILL);
         paint.setStrokeWidth(1f);
 
-        for (int row = 0; row < GRID_SIZE; row++) {
-            for (int col = 0; col < GRID_SIZE; col++) {
+        for (int row = 0; row < gridSize; row++) {
+            for (int col = 0; col < gridSize; col++) {
 
                 float left = gridStartX + col * cellSize;
                 float top = gridStartY + row * cellSize;
@@ -164,8 +162,8 @@ public class GameView extends View {
         RectF boardRect = new RectF(
                 gridStartX + 1.5f,
                 gridStartY + 1.5f,
-                gridStartX + GRID_SIZE * cellSize - 1.5f,
-                gridStartY + GRID_SIZE * cellSize - 1.5f
+                gridStartX + gridSize * cellSize - 1.5f,
+                gridStartY + gridSize * cellSize - 1.5f
         );
 
         paint.setStyle(Paint.Style.STROKE);
@@ -256,9 +254,9 @@ public class GameView extends View {
         paint.setStrokeCap(Paint.Cap.SQUARE);
 
         // Horizontal walls
-        for (int row = 0; row < GRID_SIZE - 1; row++) {
+        for (int row = 0; row < gridSize - 1; row++) {
 
-            for (int col = 0; col < GRID_SIZE; col++) {
+            for (int col = 0; col < gridSize; col++) {
 
                 if (horizontalWalls != null &&
                         horizontalWalls[row][col]) {
@@ -286,9 +284,9 @@ public class GameView extends View {
         }
 
         // Vertical walls
-        for (int row = 0; row < GRID_SIZE; row++) {
+        for (int row = 0; row < gridSize; row++) {
 
-            for (int col = 0; col < GRID_SIZE - 1; col++) {
+            for (int col = 0; col < gridSize - 1; col++) {
 
                 if (verticalWalls != null &&
                         verticalWalls[row][col]) {
@@ -590,8 +588,8 @@ public class GameView extends View {
         int row = (int) ((y - gridStartY) / cellSize);
 
         boolean insideGrid =
-                row >= 0 && row < GRID_SIZE &&
-                        col >= 0 && col < GRID_SIZE;
+                row >= 0 && row < gridSize &&
+                        col >= 0 && col < gridSize;
 
         switch (event.getAction()) {
 

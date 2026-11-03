@@ -1,0 +1,38 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="100dp"
+    android:height="100dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Connecting line -->
+    <path
+        android:fillColor="#00000000"
+        android:strokeColor="#2563EB"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:pathData="M30,60 L60,60 L90,60" />
+
+    <!-- Checkpoint 1 -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M30,42 A18,18 0,1 0,30,78 A18,18 0,1 0,30,42" />
+
+    <!-- Checkpoint 2 -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M60,42 A18,18 0,1 0,60,78 A18,18 0,1 0,60,42" />
+
+    <!-- Checkpoint 3 -->
+    <path
+        android:fillColor="#2563EB"
+        android:pathData="M90,42 A18,18 0,1 0,90,78 A18,18 0,1 0,90,42" />
+
+    <!-- Numbers -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="
+            M27,53 L27,67 L33,67 L33,53 Z
+            M57,53 L57,67 L63,67 L63,53 Z
+            M87,53 L87,67 L93,67 L93,53 Z" />
+
+</vector>

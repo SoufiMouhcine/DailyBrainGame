@@ -8,7 +8,10 @@ import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.appcompat.app.AppCompatActivity;
-
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
 import com.google.firebase.firestore.DocumentSnapshot;
@@ -79,7 +82,28 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setPadding(24, 24, 24, 24);
         root.setBackgroundColor(backgroundColor);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
+        int initialLeft = root.getPaddingLeft();
+        int initialTop = root.getPaddingTop();
+        int initialRight = root.getPaddingRight();
+        int initialBottom = root.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+
+            Insets systemBars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+            );
+
+            view.setPadding(
+                    initialLeft + systemBars.left,
+                    initialTop + systemBars.top,
+                    initialRight + systemBars.right,
+                    initialBottom + systemBars.bottom
+            );
+
+            return windowInsets;
+        });
         TextView title = makeText("DAILY CHALLENGE", 26, white);
         title.setGravity(Gravity.CENTER);
         root.addView(title);
@@ -169,10 +193,16 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
         addSpace(root, 12);
 
         if (shouldShowDailyInterstitial) {
+            setContentView(root);
+            ViewCompat.requestApplyInsets(root);
+
             showLoadingScreen();
             loadDailyInterstitialAd();
+
         } else {
             setContentView(root);
+            ViewCompat.requestApplyInsets(root);
+
             loadLeaderboard();
         }
     }

@@ -24,8 +24,10 @@ import com.google.android.libraries.ads.mobile.sdk.common.AdRequest;
 import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
 import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
 import com.google.android.libraries.ads.mobile.sdk.common.FullScreenContentError;
-import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAd;
-import com.google.android.libraries.ads.mobile.sdk.interstitial.InterstitialAdEventCallback;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 public class LeaderboardActivity extends AppCompatActivity {
     private final Set<String> topPlayerIds = new HashSet<>();
@@ -35,10 +37,8 @@ public class LeaderboardActivity extends AppCompatActivity {
     private LinearLayout personalScoreContainer;
     private String currentPlayerId;
     private int stageNumber;
-    private InterstitialAd interstitialAd;
 
-    private static final String INTERSTITIAL_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/1033173712";
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -179,46 +179,11 @@ public class LeaderboardActivity extends AppCompatActivity {
             int unlockedStage =
                     preferences.getInt("unlocked_stage", 1);
 
-            // Keep the existing locked-stage protection.
             if (nextStage > unlockedStage) {
                 nextStage = unlockedStage;
             }
 
-            final int targetStage = nextStage;
-
-            // Show an interstitial after every 5 completed stages.
-            if (stageNumber % 5 == 0 && interstitialAd != null) {
-
-                InterstitialAd ad = interstitialAd;
-                interstitialAd = null;
-
-                ad.setAdEventCallback(
-                        new InterstitialAdEventCallback() {
-
-                            @Override
-                            public void onAdDismissedFullScreenContent() {
-                                runOnUiThread(() ->
-                                        openStage(targetStage)
-                                );
-                            }
-
-                            @Override
-                            public void onAdFailedToShowFullScreenContent(
-                                    @NonNull FullScreenContentError error) {
-
-                                runOnUiThread(() ->
-                                        openStage(targetStage)
-                                );
-                            }
-                        }
-                );
-
-                ad.show(LeaderboardActivity.this);
-
-            } else {
-                // If no ad is ready, continue without delaying the player.
-                openStage(targetStage);
-            }
+            openStage(nextStage);
         });
 
 
@@ -248,8 +213,32 @@ public class LeaderboardActivity extends AppCompatActivity {
                 new LinearLayout.LayoutParams(-1, -2)
         );
 
+// Handle Android system bars
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        int initialLeft = root.getPaddingLeft();
+        int initialTop = root.getPaddingTop();
+        int initialRight = root.getPaddingRight();
+        int initialBottom = root.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+
+            Insets systemBars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+            );
+
+            view.setPadding(
+                    initialLeft + systemBars.left,
+                    initialTop + systemBars.top,
+                    initialRight + systemBars.right,
+                    initialBottom + systemBars.bottom
+            );
+
+            return windowInsets;
+        });
+
         setContentView(root);
-        loadInterstitialAd();
+        ViewCompat.requestApplyInsets(root);
         loadLeaderboard();
         loadPlayerRank();
         loadPersonalScore();
@@ -271,37 +260,6 @@ public class LeaderboardActivity extends AppCompatActivity {
         finish();
     }
 
-    private void loadInterstitialAd() {
-        InterstitialAd.load(
-                new AdRequest.Builder(INTERSTITIAL_AD_UNIT_ID).build(),
-                new AdLoadCallback<InterstitialAd>() {
-                    @Override
-                    public void onAdLoaded(@NonNull InterstitialAd ad) {
-                        runOnUiThread(() -> {
-                            interstitialAd = ad;
-
-                            android.util.Log.d(
-                                    "DailyBrainAds",
-                                    "LEADERBOARD INTERSTITIAL LOADED"
-                            );
-                        });
-                    }
-
-                    @Override
-                    public void onAdFailedToLoad(@NonNull LoadAdError adError) {
-                        runOnUiThread(() -> {
-                            interstitialAd = null;
-
-                            android.util.Log.e(
-                                    "DailyBrainAds",
-                                    "LEADERBOARD INTERSTITIAL FAILED: "
-                                            + adError.getMessage()
-                            );
-                        });
-                    }
-                }
-        );
-    }
 
     private void loadPersonalScore() {
         personalScoreContainer.removeAllViews();

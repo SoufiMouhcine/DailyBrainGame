@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 
 <LinearLayout
+    android:id="@+id/mainRoot"
     xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
@@ -245,6 +246,134 @@
             android:stateListAnimator="@null"
             android:elevation="0dp"
             android:padding="0dp" />
+
+
+    </LinearLayout>
+
+    <!-- How to Play -->
+    <LinearLayout
+        android:id="@+id/howToPlaySection"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:layout_marginTop="6dp"
+        android:background="#1E293B"
+        android:padding="10dp">
+
+        <TextView
+            android:id="@+id/howToPlayHeader"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="HOW TO PLAY                         ▼"
+            android:textColor="#4CC846"
+            android:textSize="13sp"
+            android:textStyle="bold"
+            android:padding="4dp"
+            android:gravity="center_vertical"
+            android:clickable="true"
+            android:focusable="true" />
+
+
+        <LinearLayout
+            android:id="@+id/howToPlayContent"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:visibility="gone"
+            android:paddingTop="12dp">
+
+            <!-- Connect checkpoints -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <FrameLayout
+                    android:layout_width="110dp"
+                    android:layout_height="65dp">
+
+                    <View
+                        android:layout_width="65dp"
+                        android:layout_height="4dp"
+                        android:layout_gravity="center"
+                        android:background="#2563EB" />
+
+                    <TextView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_gravity="center_vertical|start"
+                        android:background="@drawable/bg_howto_dot"
+                        android:gravity="center"
+                        android:text="1"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_gravity="center"
+                        android:background="@drawable/bg_howto_dot"
+                        android:gravity="center"
+                        android:text="2"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="13sp" />
+
+                    <TextView
+                        android:layout_width="30dp"
+                        android:layout_height="30dp"
+                        android:layout_gravity="center_vertical|end"
+                        android:background="@drawable/bg_howto_dot"
+                        android:gravity="center"
+                        android:text="3"
+                        android:textColor="#FFFFFF"
+                        android:textStyle="bold"
+                        android:textSize="13sp" />
+
+                </FrameLayout>
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Connect the checkpoints in order"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="4dp" />
+
+            </LinearLayout>
+
+            <!-- Fill every cell -->
+            <LinearLayout
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:orientation="vertical"
+                android:gravity="center">
+
+                <ImageView
+                    android:layout_width="76dp"
+                    android:layout_height="76dp"
+                    android:src="@drawable/how_to_fill_cells"
+                    android:scaleType="fitCenter"
+                    android:contentDescription="A grid filled with a blue path" />
+
+                <TextView
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:text="Fill every cell"
+                    android:textColor="#FFFFFF"
+                    android:textSize="12sp"
+                    android:gravity="center"
+                    android:layout_marginTop="4dp" />
+
+            </LinearLayout>
+
+        </LinearLayout>
+
 
     </LinearLayout>
 

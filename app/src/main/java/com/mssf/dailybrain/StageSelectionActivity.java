@@ -18,7 +18,11 @@ import android.widget.FrameLayout;
 import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
-
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
+import android.view.View;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
@@ -103,7 +107,32 @@ public class StageSelectionActivity extends AppCompatActivity {
         setupNotificationPermissionLauncher();
         requestNotificationPermissionIfNeeded();
         setContentView(R.layout.activity_stage_selection);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
 
+        View root = findViewById(R.id.stageSelectionRoot);
+
+        int initialLeft = root.getPaddingLeft();
+        int initialTop = root.getPaddingTop();
+        int initialRight = root.getPaddingRight();
+        int initialBottom = root.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(root, (view, windowInsets) -> {
+
+            Insets systemBars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+            );
+
+            view.setPadding(
+                    initialLeft + systemBars.left,
+                    initialTop + systemBars.top,
+                    initialRight + systemBars.right,
+                    initialBottom + systemBars.bottom
+            );
+
+            return windowInsets;
+        });
+
+        ViewCompat.requestApplyInsets(root);
         stageGrid = findViewById(R.id.stageGrid);
 
         Button world1Button = findViewById(R.id.world1Button);

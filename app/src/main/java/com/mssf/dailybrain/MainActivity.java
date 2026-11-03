@@ -2,12 +2,12 @@
 package com.mssf.dailybrain;
 
 import android.content.Intent;
-import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.View;
 import android.widget.Button;
+import android.widget.LinearLayout;
 import android.widget.TextView;
 import java.util.HashSet;
 import com.google.firebase.auth.FirebaseAuth;
@@ -28,6 +28,10 @@ import com.google.android.libraries.ads.mobile.sdk.common.FullScreenContentError
 import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAd;
 import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardItem;
 import com.google.android.libraries.ads.mobile.sdk.rewarded.RewardedAdEventCallback;
+import androidx.core.graphics.Insets;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowCompat;
+import androidx.core.view.WindowInsetsCompat;
 
 public class MainActivity extends AppCompatActivity {
     private boolean practiceMode = false;
@@ -90,6 +94,44 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         initializeAdMob();
         setContentView(R.layout.activity_main);
+        TextView howToPlayHeader = findViewById(R.id.howToPlayHeader);
+        LinearLayout howToPlayContent = findViewById(R.id.howToPlayContent);
+
+        howToPlayHeader.setOnClickListener(v -> {
+            if (howToPlayContent.getVisibility() == View.GONE) {
+                howToPlayContent.setVisibility(View.VISIBLE);
+                howToPlayHeader.setText("HOW TO PLAY                         ▲");
+            } else {
+                howToPlayContent.setVisibility(View.GONE);
+                howToPlayHeader.setText("HOW TO PLAY                         ▼");
+            }
+        });
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
+
+        View mainRoot = findViewById(R.id.mainRoot);
+
+        int initialLeft = mainRoot.getPaddingLeft();
+        int initialTop = mainRoot.getPaddingTop();
+        int initialRight = mainRoot.getPaddingRight();
+        int initialBottom = mainRoot.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(mainRoot, (view, windowInsets) -> {
+
+            Insets systemBars = windowInsets.getInsets(
+                    WindowInsetsCompat.Type.systemBars()
+            );
+
+            view.setPadding(
+                    initialLeft + systemBars.left,
+                    initialTop + systemBars.top,
+                    initialRight + systemBars.right,
+                    initialBottom + systemBars.bottom
+            );
+
+            return windowInsets;
+        });
+
+        ViewCompat.requestApplyInsets(mainRoot);
         getOnBackPressedDispatcher().addCallback(
                 this,
                 new OnBackPressedCallback(true) {
@@ -99,16 +141,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 }
         );
-        // Keep Android system bars visible.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            getWindow().getInsetsController().show(
-                    android.view.WindowInsets.Type.systemBars()
-            );
-        } else {
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_VISIBLE
-            );
-        }
+
         practiceMode = getIntent().getBooleanExtra(
                 "practice_mode",
                 false
@@ -170,18 +203,6 @@ public class MainActivity extends AppCompatActivity {
                 if (count > 0 && !timerRunning) {
                     startTimer();
                 }
-            }
-
-
-            private void openLeaderboard(int completedStage) {
-                android.content.Intent intent =
-                        new android.content.Intent(
-                                MainActivity.this,
-                                LeaderboardActivity.class
-                        );
-
-                intent.putExtra("stage_number", completedStage);
-                startActivity(intent);
             }
 
 
@@ -385,7 +406,7 @@ public class MainActivity extends AppCompatActivity {
                                                 );
 
                                                 runOnUiThread(
-                                                        () -> openLeaderboard(completedStage)
+                                                        () -> showInterstitialBeforeLeaderboard(completedStage)
                                                 );
                                             }
 
@@ -398,7 +419,7 @@ public class MainActivity extends AppCompatActivity {
                                                 );
 
                                                 runOnUiThread(
-                                                        () -> openLeaderboard(completedStage)
+                                                        () -> showInterstitialBeforeLeaderboard(completedStage)
                                                 );
                                             }
                                         }
@@ -533,6 +554,45 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
+    private void openLeaderboard(int completedStage) {
+        android.content.Intent intent =
+                new android.content.Intent(
+                        MainActivity.this,
+                        LeaderboardActivity.class
+                );
+
+        intent.putExtra("stage_number", completedStage);
+        startActivity(intent);
+    }
+    private void showInterstitialBeforeLeaderboard(int completedStage) {
+
+        // Show an ad after every 4 completed stages
+        if (completedStage % 4 == 0 && interstitialAd != null) {
+
+            InterstitialAd ad = interstitialAd;
+            interstitialAd = null;
+
+            ad.setAdEventCallback(new InterstitialAdEventCallback() {
+
+                @Override
+                public void onAdDismissedFullScreenContent() {
+                    runOnUiThread(() -> openLeaderboard(completedStage));
+                }
+
+                @Override
+                public void onAdFailedToShowFullScreenContent(
+                        @NonNull FullScreenContentError error) {
+                    runOnUiThread(() -> openLeaderboard(completedStage));
+                }
+            });
+
+            ad.show(MainActivity.this);
+
+        } else {
+            // No ad available, or this isn't a multiple of 4
+            openLeaderboard(completedStage);
+        }
+    }
     private void signInPlayer() {
         FirebaseUser currentUser = firebaseAuth.getCurrentUser();
 

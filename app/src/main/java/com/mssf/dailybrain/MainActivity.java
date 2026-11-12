@@ -32,6 +32,12 @@ import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.NetworkRequest;
+import androidx.appcompat.app.AlertDialog;
 
 public class MainActivity extends AppCompatActivity {
     private boolean practiceMode = false;
@@ -42,11 +48,11 @@ public class MainActivity extends AppCompatActivity {
     private RewardedAd rewardedAd;
 
     private static final String REWARDED_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/5224354917";
+            "ca-app-pub-8577381577726016/6823163212";
     private InterstitialAd interstitialAd;
 
     private static final String INTERSTITIAL_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/1033173712";
+            "ca-app-pub-8577381577726016/6395787803";
     private GameView gameView;
     private android.view.View completionPanel;
     private TextView completionTitle;
@@ -60,6 +66,13 @@ public class MainActivity extends AppCompatActivity {
     private FirebaseAuth firebaseAuth;
     private long startTime = 0;
     private boolean timerRunning = false;
+    private ConnectivityManager connectivityManager;
+    private ConnectivityManager.NetworkCallback networkCallback;
+    private boolean timerWasRunningBeforeDisconnect = false;
+    private AlertDialog connectionDialog;
+    private boolean connectionLost = false;
+    private boolean connectionDialogShowing = false;
+    private long pausedElapsedTime = 0;
 
     private final Runnable timerRunnable = new Runnable() {
         @Override
@@ -650,18 +663,210 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+    private boolean isInternetAvailable() {
 
-    private void startTimer() {
+        ConnectivityManager cm =
+                (ConnectivityManager) getSystemService(
+                        Context.CONNECTIVITY_SERVICE);
 
-        if (timerRunning) {
+        if (cm == null) return false;
+
+        Network network = cm.getActiveNetwork();
+
+        if (network == null) return false;
+
+        NetworkCapabilities capabilities =
+                cm.getNetworkCapabilities(network);
+
+        return capabilities != null
+                && capabilities.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                && capabilities.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+    }
+    private void registerNetworkMonitor() {
+
+        connectivityManager =
+                (ConnectivityManager) getSystemService(
+                        Context.CONNECTIVITY_SERVICE);
+
+        if (connectivityManager == null) {
+            handleConnectionState(false);
             return;
         }
 
+        networkCallback = new ConnectivityManager.NetworkCallback() {
+
+            @Override
+            public void onCapabilitiesChanged(
+                    Network network,
+                    NetworkCapabilities capabilities) {
+
+                boolean connected =
+                        capabilities.hasCapability(
+                                NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                                && capabilities.hasCapability(
+                                NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+
+                runOnUiThread(() -> handleConnectionState(connected));
+            }
+
+            @Override
+            public void onLost(Network network) {
+                runOnUiThread(() ->
+                        handleConnectionState(isInternetAvailable()));
+            }
+        };
+
+        try {
+            connectivityManager.registerDefaultNetworkCallback(networkCallback);
+            handleConnectionState(isInternetAvailable());
+
+        } catch (Exception e) {
+            android.util.Log.e(
+                    "DailyBrain",
+                    "Could not register network monitor",
+                    e
+            );
+            handleConnectionState(false);
+        }
+    }
+    private void handleConnectionState(boolean connected) {
+
+        if (isFinishing() || isDestroyed()) return;
+
+        // Don't interrupt the completion screen.
+        if (completionPanel != null
+                && completionPanel.getVisibility() == View.VISIBLE) {
+            return;
+        }
+
+        if (connected) {
+
+            if (!connectionLost) return;
+
+            connectionLost = false;
+
+            if (connectionDialog != null
+                    && connectionDialog.isShowing()) {
+                connectionDialog.dismiss();
+            }
+
+            if (gameView != null) {
+                gameView.setEnabled(true);
+            }
+
+            if (timerWasRunningBeforeDisconnect) {
+                timerWasRunningBeforeDisconnect = false;
+                startTimer();
+            }
+
+        } else {
+
+            if (!connectionLost) {
+                timerWasRunningBeforeDisconnect = timerRunning;
+                pauseTimer();
+            }
+
+            connectionLost = true;
+
+            if (gameView != null) {
+                gameView.setEnabled(false);
+            }
+
+            showConnectionDialog();
+        }
+    }
+    private void showConnectionDialog() {
+
+        if (connectionDialog != null
+                && connectionDialog.isShowing()) {
+            return;
+        }
+
+        connectionDialog = new AlertDialog.Builder(this)
+                .setTitle("Internet connection required")
+                .setMessage(
+                        "Your connection was lost. Please reconnect to continue playing.")
+                .setCancelable(false)
+                .setPositiveButton("CHECK AGAIN", null)
+                .create();
+
+        connectionDialog.setOnShowListener(dialog -> {
+
+            connectionDialog.getButton(
+                    AlertDialog.BUTTON_POSITIVE
+            ).setOnClickListener(v -> {
+
+                if (isInternetAvailable()) {
+                    handleConnectionState(true);
+                } else {
+                    connectionDialog.setMessage(
+                            "Still no internet connection. Please reconnect and try again."
+                    );
+                }
+            });
+        });
+
+        connectionDialog.show();
+    }
+    private void unregisterNetworkMonitor() {
+
+        if (connectivityManager != null && networkCallback != null) {
+
+            try {
+                connectivityManager.unregisterNetworkCallback(networkCallback);
+            } catch (Exception e) {
+                android.util.Log.e(
+                        "DailyBrain",
+                        "Error unregistering network callback",
+                        e
+                );
+            }
+
+            networkCallback = null;
+        }
+    }
+    private void pauseTimer() {
+
+        if (!timerRunning) return;
+
+        pausedElapsedTime = System.currentTimeMillis() - startTime;
+
+        timerRunning = false;
+        handler.removeCallbacks(timerRunnable);
+
+        int seconds = (int) (pausedElapsedTime / 1000);
+        int minutes = seconds / 60;
+        seconds %= 60;
+
+        timerText.setText(String.format(
+                java.util.Locale.getDefault(),
+                "Time: %02d:%02d",
+                minutes,
+                seconds
+        ));
+    }
+    private void startTimer() {
+
+        if (timerRunning) return;
+
         timerRunning = true;
 
-        startTime = System.currentTimeMillis();
+        startTime = System.currentTimeMillis() - pausedElapsedTime;
 
         handler.post(timerRunnable);
+    }
+    @Override
+    protected void onStart() {
+        super.onStart();
+        registerNetworkMonitor();
+    }
+
+    @Override
+    protected void onStop() {
+        unregisterNetworkMonitor();
+        super.onStop();
     }
 
     private void stopTimer() {
@@ -684,7 +889,7 @@ public class MainActivity extends AppCompatActivity {
             MobileAds.initialize(
                     getApplicationContext(),
                     new InitializationConfig.Builder(
-                            "ca-app-pub-3940256099942544~3347511713"
+                            "ca-app-pub-8577381577726016~8469035347"
                     ).build(),
                     initializationStatus -> {
                         android.util.Log.d(

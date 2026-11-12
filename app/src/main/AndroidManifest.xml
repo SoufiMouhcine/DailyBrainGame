@@ -3,6 +3,7 @@
     xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="com.google.android.gms.permission.AD_ID" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <application
         android:allowBackup="true"
         android:dataExtractionRules="@xml/data_extraction_rules"
@@ -14,7 +15,10 @@
         android:theme="@style/Theme.DailyBrain">
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-3940256099942544~3347511713" />
+            android:value="ca-app-pub-8577381577726016~8469035347" />
+        <meta-data
+            android:name="com.google.android.libraries.ads.mobile.sdk.APPLICATION_ID"
+            android:value="ca-app-pub-8577381577726016~8469035347" />
         <activity
             android:name=".MainActivity"
             android:exported="false" />

@@ -574,6 +574,11 @@ public class GameView extends View {
     @Override
     public boolean onTouchEvent(MotionEvent event) {
 
+        // Block all gameplay input when the game is disabled.
+        if (!isEnabled()) {
+            return true;
+        }
+
         if (cellSize <= 0) {
             return true;
         }

@@ -45,6 +45,8 @@ dependencies {
     implementation(libs.constraintlayout)
     // ads
     implementation("com.google.android.libraries.ads.mobile.sdk:ads-mobile-sdk:1.6.0")
+    // Privacy consent
+    implementation("com.google.android.ump:user-messaging-platform:4.0.0")
     // Firebase
     implementation(platform("com.google.firebase:firebase-bom:34.19.0"))
     implementation("com.google.firebase:firebase-auth")

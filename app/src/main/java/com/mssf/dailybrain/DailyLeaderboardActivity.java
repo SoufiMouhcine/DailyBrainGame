@@ -43,7 +43,7 @@ public class DailyLeaderboardActivity extends AppCompatActivity {
     private boolean dailyInterstitialHandled = false;
     private LinearLayout leaderboardRoot;
     private static final String DAILY_INTERSTITIAL_AD_UNIT_ID =
-            "ca-app-pub-3940256099942544/1033173712";
+            "ca-app-pub-8577381577726016/6395787803";
     private final int backgroundColor =
             android.graphics.Color.rgb(16, 24, 39);
     private final int cardColor =

@@ -26,6 +26,11 @@ import android.view.View;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.core.content.ContextCompat;
+import android.content.Context;
+import android.net.ConnectivityManager;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import androidx.appcompat.app.AlertDialog;
 import com.google.android.libraries.ads.mobile.sdk.banner.AdView;
 import com.google.android.libraries.ads.mobile.sdk.banner.AdSize;
 import com.google.android.libraries.ads.mobile.sdk.banner.BannerAd;
@@ -34,14 +39,120 @@ import com.google.android.libraries.ads.mobile.sdk.common.AdLoadCallback;
 import com.google.android.libraries.ads.mobile.sdk.common.LoadAdError;
 import com.google.android.libraries.ads.mobile.sdk.MobileAds;
 import com.google.android.libraries.ads.mobile.sdk.initialization.InitializationConfig;
+import com.google.android.ump.ConsentInformation;
+import com.google.android.ump.ConsentRequestParameters;
+import com.google.android.ump.UserMessagingPlatform;
 
 public class StageSelectionActivity extends AppCompatActivity {
 
     private GridLayout stageGrid;
     private int selectedWorld = 1;
-
+    private boolean connectionDialogShowing = false;
     private AdView bannerAdView;
+    private ConsentInformation consentInformation;
+    private boolean adsInitializationStarted = false;
     private ActivityResultLauncher<String> notificationPermissionLauncher;
+    private Button privacySettingsButton;
+
+    private void setupPrivacySettingsButton() {
+
+        privacySettingsButton = findViewById(R.id.privacySettingsButton);
+
+        if (consentInformation.getPrivacyOptionsRequirementStatus()
+                == ConsentInformation.PrivacyOptionsRequirementStatus.REQUIRED) {
+
+            privacySettingsButton.setVisibility(View.VISIBLE);
+
+        } else {
+
+            privacySettingsButton.setVisibility(View.GONE);
+        }
+
+        privacySettingsButton.setOnClickListener(v -> {
+
+            UserMessagingPlatform.showPrivacyOptionsForm(
+                    this,
+                    formError -> {
+
+                        if (formError != null) {
+                            Log.e(
+                                    "DailyBrainUMP",
+                                    "Privacy options form error: "
+                                            + formError.getMessage()
+                            );
+                        } else {
+                            Log.d(
+                                    "DailyBrainUMP",
+                                    "Privacy options form closed"
+                            );
+                            setupPrivacySettingsButton();
+                        }
+                    }
+            );
+        });
+    }
+    private void requestConsentAndInitializeAds() {
+        consentInformation =
+                UserMessagingPlatform.getConsentInformation(this);
+
+        ConsentRequestParameters params =
+                new ConsentRequestParameters.Builder()
+                        .build();
+
+        consentInformation.requestConsentInfoUpdate(
+                this,
+                params,
+
+                // Consent information updated successfully
+                () -> UserMessagingPlatform.loadAndShowConsentFormIfRequired(
+                        this,
+                        formError -> {
+
+                            if (formError != null) {
+                                Log.w(
+                                        "DailyBrainUMP",
+                                        "Consent form error: " + formError.getMessage()
+                                );
+                            }
+                            setupPrivacySettingsButton();
+                            initializeAdsIfAllowed();
+                        }
+                ),
+
+                // Consent information update failed
+                requestError -> {
+
+                    Log.w(
+                            "DailyBrainUMP",
+                            "Consent update error: " + requestError.getMessage()
+                    );
+                    setupPrivacySettingsButton();
+                    initializeAdsIfAllowed();
+                }
+        );
+    }
+
+    private void initializeAdsIfAllowed() {
+
+        boolean canRequest = consentInformation != null
+                && consentInformation.canRequestAds();
+
+        Log.d("DailyBrainUMP",
+                "initializeAdsIfAllowed called. canRequestAds="
+                        + canRequest
+                        + ", alreadyStarted="
+                        + adsInitializationStarted);
+
+        if (canRequest && !adsInitializationStarted) {
+
+            adsInitializationStarted = true;
+
+            Log.d("DailyBrainUMP",
+                    "Starting AdMob initialization now");
+
+            initializeAdMobAndLoadBanner();
+        }
+    }
     private void loadStageSelectionBanner() {
         FrameLayout adContainer =
                 findViewById(R.id.stageSelectionAdContainer);
@@ -62,7 +173,7 @@ public class StageSelectionActivity extends AppCompatActivity {
                 );
 
         BannerAdRequest request = new BannerAdRequest.Builder(
-                "ca-app-pub-3940256099942544/9214589741",
+                "ca-app-pub-8577381577726016/9035674843",
                 adSize
         ).build();
 
@@ -88,7 +199,7 @@ public class StageSelectionActivity extends AppCompatActivity {
             MobileAds.initialize(
                     getApplicationContext(),
                     new InitializationConfig.Builder(
-                            "ca-app-pub-3940256099942544~3347511713"
+                            "ca-app-pub-8577381577726016~8469035347"
                     ).build(),
                     initializationStatus -> {
                         Log.d(
@@ -149,6 +260,9 @@ public class StageSelectionActivity extends AppCompatActivity {
                 findViewById(R.id.dailyChallengeButton);
 
         dailyButton.setOnClickListener(v -> {
+
+            if (!canPlay()) return;
+
             Intent intent = new Intent(
                     StageSelectionActivity.this,
                     DailyChallengeActivity.class
@@ -159,7 +273,7 @@ public class StageSelectionActivity extends AppCompatActivity {
 
         createStageButtons();
         updateWorldButtons();
-        initializeAdMobAndLoadBanner();
+        requestConsentAndInitializeAds();
     }
     private void updateWorldTitle() {
         TextView worldTitleText = findViewById(R.id.worldTitleText);
@@ -323,8 +437,66 @@ public class StageSelectionActivity extends AppCompatActivity {
             return "MASTER";
         }
     }
+    private boolean isInternetAvailable() {
 
+        ConnectivityManager cm =
+                (ConnectivityManager) getSystemService(
+                        Context.CONNECTIVITY_SERVICE);
+
+        if (cm == null) return false;
+
+        Network network = cm.getActiveNetwork();
+
+        if (network == null) return false;
+
+        NetworkCapabilities capabilities =
+                cm.getNetworkCapabilities(network);
+
+        return capabilities != null
+                && capabilities.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_INTERNET)
+                && capabilities.hasCapability(
+                NetworkCapabilities.NET_CAPABILITY_VALIDATED);
+    }
+
+    private boolean canPlay() {
+
+        if (isInternetAvailable()) {
+            return true;
+        }
+
+        showConnectionRequiredDialog();
+        return false;
+    }
+
+    private void showConnectionRequiredDialog() {
+
+        if (isFinishing() || connectionDialogShowing) return;
+
+        connectionDialogShowing = true;
+
+        new AlertDialog.Builder(this)
+                .setTitle("Internet connection required")
+                .setMessage(
+                        "Please connect to the internet to play DailyBrain.")
+                .setCancelable(false)
+                .setPositiveButton("TRY AGAIN", (dialog, which) -> {
+                    connectionDialogShowing = false;
+
+                    if (!isInternetAvailable()) {
+                        showConnectionRequiredDialog();
+                    }
+                })
+                .setNegativeButton("CLOSE", (dialog, which) -> {
+                    connectionDialogShowing = false;
+                })
+                .setOnDismissListener(dialog ->
+                        connectionDialogShowing = false)
+                .show();
+    }
     private void openStage(int stageNumber) {
+
+        if (!canPlay()) return;
 
         Intent intent = new Intent(
                 StageSelectionActivity.this,

@@ -19,8 +19,8 @@ public final class DailyReminderScheduler {
 
         Calendar now = Calendar.getInstance();
         Calendar nextRun = Calendar.getInstance();
-        nextRun.set(Calendar.HOUR_OF_DAY, 10);
-        nextRun.set(Calendar.MINUTE, 0);
+        nextRun.set(Calendar.HOUR_OF_DAY, 16);
+        nextRun.set(Calendar.MINUTE, 24);
         nextRun.set(Calendar.SECOND, 0);
         nextRun.set(Calendar.MILLISECOND, 0);
 

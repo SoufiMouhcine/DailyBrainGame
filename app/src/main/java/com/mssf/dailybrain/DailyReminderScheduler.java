@@ -5,7 +5,6 @@ import android.content.Context;
 import androidx.work.ExistingPeriodicWorkPolicy;
 import androidx.work.PeriodicWorkRequest;
 import androidx.work.WorkManager;
-
 import java.util.Calendar;
 import java.util.concurrent.TimeUnit;
 
@@ -19,7 +18,6 @@ public final class DailyReminderScheduler {
     public static void scheduleDailyReminder(Context context) {
 
         Calendar now = Calendar.getInstance();
-
         Calendar nextRun = Calendar.getInstance();
         nextRun.set(Calendar.HOUR_OF_DAY, 10);
         nextRun.set(Calendar.MINUTE, 0);
@@ -49,7 +47,7 @@ public final class DailyReminderScheduler {
         WorkManager.getInstance(context.getApplicationContext())
                 .enqueueUniquePeriodicWork(
                         WORK_NAME,
-                        ExistingPeriodicWorkPolicy.KEEP,
+                        ExistingPeriodicWorkPolicy.UPDATE,
                         reminderWork
                 );
     }
